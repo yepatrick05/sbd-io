@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# Ignore internal docs
+CODE_STYLE.md
+MVP_SPEC.md
+DATA_MODEL.md
+IMPORT_PIPELINE.md
