@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 
-import type { HeaderRowCandidate, TableColumnMapping, TableRegion, WorkbookPreview } from "@/types/workbook";
+import type {
+    ExerciseRow,
+    HeaderRowCandidate,
+    TableColumnMapping,
+    TableContext,
+    TableRegion,
+    WorkbookPreview,
+} from "@/types/workbook";
 
 export default function UploadPage() {
     const [workbookPreview, setWorkbookPreview] = useState<WorkbookPreview | null>(null);
@@ -41,6 +48,8 @@ export default function UploadPage() {
     let visibleHeaderRowCandidates: HeaderRowCandidate[] = [];
     let visibleTableRegions: TableRegion[] = [];
     let visibleTableColumnMappings: TableColumnMapping[] = [];
+    let visibleExerciseRows: ExerciseRow[] = [];
+    let visibleTableContexts: TableContext[] = [];
 
     if (workbookPreview !== null && selectedSheet !== null) {
         visibleHeaderRowCandidates = workbookPreview.headerRowCandidates.filter((candidate) => {
@@ -53,6 +62,14 @@ export default function UploadPage() {
 
         visibleTableColumnMappings = workbookPreview.tableColumnMappings.filter((tableColumnMapping) => {
             return tableColumnMapping.sheetName === selectedSheet.name;
+        });
+
+        visibleExerciseRows = workbookPreview.exerciseRows.filter((exerciseRow) => {
+            return exerciseRow.sheetName === selectedSheet.name;
+        });
+
+        visibleTableContexts = workbookPreview.tableContexts.filter((tableContext) => {
+            return tableContext.sheetName === selectedSheet.name;
         });
     }
 
@@ -240,6 +257,103 @@ export default function UploadPage() {
                                     </div>
                                 )}
                             </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-base font-semibold">Extracted Exercise Rows</h3>
+
+                                {visibleTableContexts.length === 0 && (
+                                    <p className="text-sm text-gray-600">
+                                        No table contexts were detected for this sheet.
+                                    </p>
+                                )}
+
+                                {visibleTableContexts.length > 0 && (
+                                    <div className="space-y-2">
+                                        {visibleTableContexts.map((tableContext, index) => {
+                                            const matchingExerciseRows = visibleExerciseRows.filter((exerciseRow) => {
+                                                return exerciseRow.headerRowNumber === tableContext.headerRowNumber;
+                                            });
+
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className="rounded border border-gray-200 bg-gray-50 p-3 text-sm"
+                                                >
+                                                    <p className="font-medium">
+                                                        Header row {tableContext.headerRowNumber}
+                                                    </p>
+                                                    <p className="text-gray-600">
+                                                        Week number: {formatNumberValue(tableContext.weekNumber)}
+                                                    </p>
+                                                    <p className="text-gray-600">
+                                                        Session order: {formatNumberValue(tableContext.sessionOrder)}
+                                                    </p>
+                                                    <p className="text-gray-600">
+                                                        Session label: {formatTextValue(tableContext.sessionLabel)}
+                                                    </p>
+                                                    <p className="text-gray-600">
+                                                        Intended weekday:{" "}
+                                                        {formatTextValue(tableContext.intendedWeekday)}
+                                                    </p>
+
+                                                    <div className="mt-3 space-y-2">
+                                                        <p className="font-medium">Extracted Exercise Rows</p>
+
+                                                        {matchingExerciseRows.length === 0 && (
+                                                            <p className="text-gray-600">
+                                                                No exercise rows were extracted for this table.
+                                                            </p>
+                                                        )}
+
+                                                        {matchingExerciseRows.map((exerciseRow, exerciseRowIndex) => (
+                                                            <div
+                                                                key={exerciseRowIndex}
+                                                                className="rounded border border-gray-200 bg-white p-3"
+                                                            >
+                                                                <p className="font-medium">
+                                                                    Source row {exerciseRow.sourceRowNumber}
+                                                                </p>
+                                                                <p className="text-gray-600">
+                                                                    Exercise: {formatTextValue(exerciseRow.exercise)}
+                                                                </p>
+                                                                <p className="text-gray-600">
+                                                                    Sets: {formatTextValue(exerciseRow.sets)}
+                                                                </p>
+                                                                <p className="text-gray-600">
+                                                                    Reps: {formatTextValue(exerciseRow.reps)}
+                                                                </p>
+                                                                <p className="text-gray-600">
+                                                                    Prescribed load:{" "}
+                                                                    {formatTextValue(exerciseRow.prescribedLoad)}
+                                                                </p>
+                                                                <p className="text-gray-600">
+                                                                    Prescribed RPE:{" "}
+                                                                    {formatTextValue(exerciseRow.prescribedRpe)}
+                                                                </p>
+                                                                <p className="text-gray-600">
+                                                                    Coach notes:{" "}
+                                                                    {formatTextValue(exerciseRow.coachNotes)}
+                                                                </p>
+                                                                <p className="text-gray-600">
+                                                                    Selected load:{" "}
+                                                                    {formatTextValue(exerciseRow.selectedLoad)}
+                                                                </p>
+                                                                <p className="text-gray-600">
+                                                                    Actual RPE: {formatTextValue(exerciseRow.actualRpe)}
+                                                                </p>
+                                                                <p className="text-gray-600">
+                                                                    Athlete notes:{" "}
+                                                                    {formatTextValue(exerciseRow.athleteNotes)}
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </section>
@@ -254,4 +368,20 @@ function formatColumnIndex(columnIndex: number | null): string {
     }
 
     return String(columnIndex);
+}
+
+function formatTextValue(value: string | null): string {
+    if (value === null) {
+        return "Not found";
+    }
+
+    return value;
+}
+
+function formatNumberValue(value: number | null): string {
+    if (value === null) {
+        return "Not found";
+    }
+
+    return String(value);
 }

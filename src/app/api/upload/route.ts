@@ -2,10 +2,12 @@ import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 
 import type {
+    ExerciseRow,
     HeaderRowCandidate,
     PreviewCell,
     SheetPreview,
     TableColumnMapping,
+    TableContext,
     TableRegion,
     WorkbookPreview,
 } from "@/types/workbook";
@@ -29,6 +31,8 @@ export async function POST(request: Request) {
         headerRowCandidates: [],
         tableRegions: [],
         tableColumnMappings: [],
+        exerciseRows: [],
+        tableContexts: [],
     };
 
     workbook.eachSheet((sheet) => {
@@ -69,6 +73,10 @@ export async function POST(request: Request) {
 
     preview.tableColumnMappings = detectTableColumnMappings(preview.sheets, preview.tableRegions);
 
+    preview.exerciseRows = extractExerciseRows(preview.sheets, preview.tableRegions, preview.tableColumnMappings);
+
+    preview.tableContexts = detectTableContexts(preview.sheets, preview.tableRegions);
+
     return NextResponse.json(preview);
 }
 
@@ -102,8 +110,6 @@ function detectHeaderRows(sheetName: string, rows: PreviewCell[][]): HeaderRowCa
     ];
     const requiredMatchCount = fieldMatchers.length;
 
-    // Only keep rows that match every expected workout header field.
-    // Based on current testing, partial matches are false positives.
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
         const row = rows[rowIndex];
         const matchedFields: string[] = [];
@@ -358,6 +364,190 @@ function detectTableColumnMappings(sheets: SheetPreview[], tableRegions: TableRe
     }
 
     return tableColumnMappings;
+}
+
+function extractExerciseRows(
+    sheets: SheetPreview[],
+    tableRegions: TableRegion[],
+    tableColumnMappings: TableColumnMapping[],
+): ExerciseRow[] {
+    const exerciseRows: ExerciseRow[] = [];
+
+    for (const tableRegion of tableRegions) {
+        const sheet = sheets.find((currentSheet) => currentSheet.name === tableRegion.sheetName);
+
+        if (sheet === undefined) {
+            continue;
+        }
+
+        const tableColumnMapping = tableColumnMappings.find((currentMapping) => {
+            return (
+                currentMapping.sheetName === tableRegion.sheetName &&
+                currentMapping.headerRowNumber === tableRegion.headerRowNumber
+            );
+        });
+
+        if (tableColumnMapping === undefined) {
+            continue;
+        }
+
+        for (let rowNumber = tableRegion.startRowNumber; rowNumber <= tableRegion.endRowNumber; rowNumber++) {
+            const rowValues = sheet.rows[rowNumber - 1];
+
+            if (rowValues === undefined) {
+                continue;
+            }
+
+            const exercise = getMappedCellValue(rowValues, tableColumnMapping.columns.exercise);
+
+            if (exercise === null) {
+                continue;
+            }
+
+            exerciseRows.push({
+                sheetName: tableRegion.sheetName,
+                headerRowNumber: tableRegion.headerRowNumber,
+                sourceRowNumber: rowNumber,
+                exercise,
+                sets: getMappedCellValue(rowValues, tableColumnMapping.columns.sets),
+                reps: getMappedCellValue(rowValues, tableColumnMapping.columns.reps),
+                prescribedLoad: getMappedCellValue(rowValues, tableColumnMapping.columns.prescribedLoad),
+                prescribedRpe: getMappedCellValue(rowValues, tableColumnMapping.columns.prescribedRpe),
+                coachNotes: getMappedCellValue(rowValues, tableColumnMapping.columns.coachNotes),
+                selectedLoad: getMappedCellValue(rowValues, tableColumnMapping.columns.selectedLoad),
+                actualRpe: getMappedCellValue(rowValues, tableColumnMapping.columns.actualRpe),
+                athleteNotes: getMappedCellValue(rowValues, tableColumnMapping.columns.athleteNotes),
+            });
+        }
+    }
+
+    return exerciseRows;
+}
+
+function detectTableContexts(sheets: SheetPreview[], tableRegions: TableRegion[]): TableContext[] {
+    const tableContexts: TableContext[] = [];
+
+    for (const tableRegion of tableRegions) {
+        const sheet = sheets.find((currentSheet) => currentSheet.name === tableRegion.sheetName);
+
+        if (sheet === undefined) {
+            continue;
+        }
+
+        let weekNumber: number | null = null;
+        let sessionOrder: number | null = null;
+        let sessionLabel: string | null = null;
+        let intendedWeekday: string | null = null;
+
+        for (let rowNumber = tableRegion.headerRowNumber - 1; rowNumber >= 1; rowNumber--) {
+            const rowValues = sheet.rows[rowNumber - 1];
+
+            if (rowValues === undefined) {
+                continue;
+            }
+
+            for (const cellValue of rowValues) {
+                if (typeof cellValue !== "string") {
+                    continue;
+                }
+
+                const trimmedCellValue = cellValue.trim();
+
+                if (trimmedCellValue === "") {
+                    continue;
+                }
+
+                if (weekNumber === null) {
+                    const detectedWeekNumber = parseWeekNumber(trimmedCellValue);
+
+                    if (detectedWeekNumber !== null) {
+                        weekNumber = detectedWeekNumber;
+                    }
+                }
+
+                if (sessionOrder === null || sessionLabel === null) {
+                    const detectedSessionContext = parseSessionLabel(trimmedCellValue);
+
+                    if (detectedSessionContext !== null) {
+                        sessionOrder = detectedSessionContext.sessionOrder;
+                        sessionLabel = detectedSessionContext.sessionLabel;
+                        intendedWeekday = detectedSessionContext.intendedWeekday;
+                    }
+                }
+            }
+
+            if (weekNumber !== null && sessionLabel !== null) {
+                break;
+            }
+        }
+
+        tableContexts.push({
+            sheetName: tableRegion.sheetName,
+            headerRowNumber: tableRegion.headerRowNumber,
+            weekNumber,
+            sessionOrder,
+            sessionLabel,
+            intendedWeekday,
+        });
+    }
+
+    return tableContexts;
+}
+
+function parseWeekNumber(value: string): number | null {
+    const weekMatch = value.match(/^week\s+(\d+)$/i);
+
+    if (weekMatch === null) {
+        return null;
+    }
+
+    return Number(weekMatch[1]);
+}
+
+function parseSessionLabel(
+    value: string,
+): { sessionOrder: number | null; sessionLabel: string; intendedWeekday: string | null } | null {
+    const dayMatch = value.match(/^day\s+(\d+)\s*-\s*(.+)$/i);
+
+    if (dayMatch !== null) {
+        return {
+            sessionOrder: Number(dayMatch[1]),
+            sessionLabel: value,
+            intendedWeekday: dayMatch[2].trim(),
+        };
+    }
+
+    const sessionMatch = value.match(/^session\s+(\d+)\s*-\s*(.+)$/i);
+
+    if (sessionMatch !== null) {
+        return {
+            sessionOrder: Number(sessionMatch[1]),
+            sessionLabel: value,
+            intendedWeekday: null,
+        };
+    }
+
+    return null;
+}
+
+function getMappedCellValue(rowValues: PreviewCell[], columnIndex: number | null): string | null {
+    if (columnIndex === null) {
+        return null;
+    }
+
+    const cellValue = rowValues[columnIndex];
+
+    if (cellValue === null || cellValue === undefined) {
+        return null;
+    }
+
+    const stringValue = String(cellValue).trim();
+
+    if (stringValue === "") {
+        return null;
+    }
+
+    return stringValue;
 }
 
 function isRowEmpty(rowValues: PreviewCell[]): boolean {

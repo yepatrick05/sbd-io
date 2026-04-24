@@ -36,10 +36,36 @@ export interface TableColumnMapping {
     };
 }
 
+export interface ExerciseRow {
+    sheetName: string;
+    headerRowNumber: number;
+    sourceRowNumber: number;
+    exercise: string | null;
+    sets: string | null;
+    reps: string | null;
+    prescribedLoad: string | null;
+    prescribedRpe: string | null;
+    coachNotes: string | null;
+    selectedLoad: string | null;
+    actualRpe: string | null;
+    athleteNotes: string | null;
+}
+
+export interface TableContext {
+    sheetName: string;
+    headerRowNumber: number;
+    weekNumber: number | null;
+    sessionOrder: number | null;
+    sessionLabel: string | null;
+    intendedWeekday: string | null;
+}
+
 export interface WorkbookPreview {
     sheetNames: string[];
     sheets: SheetPreview[];
     headerRowCandidates: HeaderRowCandidate[];
     tableRegions: TableRegion[];
     tableColumnMappings: TableColumnMapping[];
+    exerciseRows: ExerciseRow[];
+    tableContexts: TableContext[];
 }
