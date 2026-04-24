@@ -8,6 +8,7 @@ import type {
     SessionPreview,
     TableColumnMapping,
     TableRegion,
+    ValidationIssue,
     WorkbookPreview,
 } from "@/types/workbook";
 
@@ -50,6 +51,7 @@ export default function UploadPage() {
     let visibleTableColumnMappings: TableColumnMapping[] = [];
     let visibleSessionPreviews: SessionPreview[] = [];
     let programPreview: ProgramPreview | null = null;
+    let validationIssues: ValidationIssue[] = [];
 
     if (workbookPreview !== null && selectedSheet !== null) {
         visibleHeaderRowCandidates = workbookPreview.headerRowCandidates.filter((candidate) => {
@@ -69,6 +71,7 @@ export default function UploadPage() {
         });
 
         programPreview = workbookPreview.programPreview;
+        validationIssues = workbookPreview.validationIssues;
     }
 
     return (
@@ -459,6 +462,43 @@ export default function UploadPage() {
                                     </div>
                                 )}
                             </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-base font-semibold">Validation Issues</h3>
+
+                                {validationIssues.length === 0 && (
+                                    <p className="text-sm text-gray-600">
+                                        No validation issues were found in the program preview.
+                                    </p>
+                                )}
+
+                                {validationIssues.length > 0 && (
+                                    <div className="space-y-2">
+                                        {validationIssues.map((issue, issueIndex) => (
+                                            <div
+                                                key={issueIndex}
+                                                className="rounded border border-gray-200 bg-gray-50 p-3 text-sm"
+                                            >
+                                                <p className="font-medium">
+                                                    {formatSeverity(issue.severity)}: {issue.message}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Week number: {formatNumberValue(issue.weekNumber)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Session order: {formatNumberValue(issue.sessionOrder)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Exercise: {formatTextValue(issue.exerciseName)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Source row: {formatNumberValue(issue.sourceRowNumber)}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </section>
@@ -489,4 +529,12 @@ function formatNumberValue(value: number | null): string {
     }
 
     return String(value);
+}
+
+function formatSeverity(severity: "error" | "warning"): string {
+    if (severity === "error") {
+        return "Error";
+    }
+
+    return "Warning";
 }

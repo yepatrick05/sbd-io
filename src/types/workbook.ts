@@ -96,6 +96,15 @@ export interface ProgramPreview {
     blocks: NormalisedBlockPreview[];
 }
 
+export interface ValidationIssue {
+    severity: "error" | "warning";
+    message: string;
+    weekNumber: number | null;
+    sessionOrder: number | null;
+    exerciseName: string | null;
+    sourceRowNumber: number | null;
+}
+
 export interface WorkbookPreview {
     sheetNames: string[];
     sheets: SheetPreview[];
@@ -106,4 +115,5 @@ export interface WorkbookPreview {
     tableContexts: TableContext[];
     sessionPreviews: SessionPreview[];
     programPreview: ProgramPreview | null;
+    validationIssues: ValidationIssue[];
 }

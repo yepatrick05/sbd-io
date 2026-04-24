@@ -14,6 +14,7 @@ import type {
     TableColumnMapping,
     TableContext,
     TableRegion,
+    ValidationIssue,
     WorkbookPreview,
 } from "@/types/workbook";
 
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
         tableContexts: [],
         sessionPreviews: [],
         programPreview: null,
+        validationIssues: [],
     };
 
     workbook.eachSheet((sheet) => {
@@ -86,8 +88,9 @@ export async function POST(request: Request) {
 
     preview.sessionPreviews = buildSessionPreviews(preview.tableContexts, preview.exerciseRows);
 
-    // Convert session previews into a cleaner program/block/week/session structure.
     preview.programPreview = buildProgramPreview(uploadedFile.name, preview.sessionPreviews);
+
+    preview.validationIssues = validateProgramPreview(preview.programPreview);
 
     return NextResponse.json(preview);
 }
@@ -611,6 +614,116 @@ function buildProgramPreview(fileName: string, sessionPreviews: SessionPreview[]
         programName: getProgramName(fileName),
         blocks,
     };
+}
+
+function validateProgramPreview(programPreview: ProgramPreview | null): ValidationIssue[] {
+    const validationIssues: ValidationIssue[] = [];
+
+    if (programPreview === null) {
+        validationIssues.push({
+            severity: "error",
+            message: "Program preview could not be created.",
+            weekNumber: null,
+            sessionOrder: null,
+            exerciseName: null,
+            sourceRowNumber: null,
+        });
+
+        return validationIssues;
+    }
+
+    let totalWeekCount = 0;
+
+    for (const block of programPreview.blocks) {
+        totalWeekCount += block.weeks.length;
+    }
+
+    if (totalWeekCount === 0) {
+        validationIssues.push({
+            severity: "error",
+            message: "Program preview must contain at least one week.",
+            weekNumber: null,
+            sessionOrder: null,
+            exerciseName: null,
+            sourceRowNumber: null,
+        });
+    }
+
+    for (const block of programPreview.blocks) {
+        for (const week of block.weeks) {
+            if (week.sessions.length === 0) {
+                validationIssues.push({
+                    severity: "error",
+                    message: "Each week must contain at least one session.",
+                    weekNumber: week.weekNumber,
+                    sessionOrder: null,
+                    exerciseName: null,
+                    sourceRowNumber: null,
+                });
+            }
+
+            for (const session of week.sessions) {
+                if (session.exercises.length === 0) {
+                    validationIssues.push({
+                        severity: "error",
+                        message: "Each session must contain at least one exercise.",
+                        weekNumber: week.weekNumber,
+                        sessionOrder: session.sessionOrder,
+                        exerciseName: null,
+                        sourceRowNumber: null,
+                    });
+                }
+
+                for (const exercise of session.exercises) {
+                    if (exercise.exercise === null) {
+                        validationIssues.push({
+                            severity: "error",
+                            message: "Each exercise must have an exercise name.",
+                            weekNumber: week.weekNumber,
+                            sessionOrder: session.sessionOrder,
+                            exerciseName: null,
+                            sourceRowNumber: exercise.sourceRowNumber,
+                        });
+                    }
+
+                    if (exercise.sets === null) {
+                        validationIssues.push({
+                            severity: "warning",
+                            message: "Exercise is missing sets.",
+                            weekNumber: week.weekNumber,
+                            sessionOrder: session.sessionOrder,
+                            exerciseName: exercise.exercise,
+                            sourceRowNumber: exercise.sourceRowNumber,
+                        });
+                    }
+
+                    if (exercise.reps === null) {
+                        validationIssues.push({
+                            severity: "warning",
+                            message: "Exercise is missing reps.",
+                            weekNumber: week.weekNumber,
+                            sessionOrder: session.sessionOrder,
+                            exerciseName: exercise.exercise,
+                            sourceRowNumber: exercise.sourceRowNumber,
+                        });
+                    }
+
+                    if (exercise.prescribedRpe === null && exercise.coachNotes === null) {
+                        validationIssues.push({
+                            severity: "warning",
+                            message: "Exercise is missing prescribed RPE or coach notes explaining the RPE-style work.",
+                            weekNumber: week.weekNumber,
+                            sessionOrder: session.sessionOrder,
+                            exerciseName: exercise.exercise,
+                            sourceRowNumber: exercise.sourceRowNumber,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    return validationIssues;
 }
 
 function getProgramName(fileName: string): string {
