@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import type { HeaderRowCandidate, TableRegion, WorkbookPreview } from "@/types/workbook";
+import type { HeaderRowCandidate, TableColumnMapping, TableRegion, WorkbookPreview } from "@/types/workbook";
 
 export default function UploadPage() {
     const [workbookPreview, setWorkbookPreview] = useState<WorkbookPreview | null>(null);
@@ -40,6 +40,7 @@ export default function UploadPage() {
 
     let visibleHeaderRowCandidates: HeaderRowCandidate[] = [];
     let visibleTableRegions: TableRegion[] = [];
+    let visibleTableColumnMappings: TableColumnMapping[] = [];
 
     if (workbookPreview !== null && selectedSheet !== null) {
         visibleHeaderRowCandidates = workbookPreview.headerRowCandidates.filter((candidate) => {
@@ -48,6 +49,10 @@ export default function UploadPage() {
 
         visibleTableRegions = workbookPreview.tableRegions.filter((tableRegion) => {
             return tableRegion.sheetName === selectedSheet.name;
+        });
+
+        visibleTableColumnMappings = workbookPreview.tableColumnMappings.filter((tableColumnMapping) => {
+            return tableColumnMapping.sheetName === selectedSheet.name;
         });
     }
 
@@ -66,7 +71,7 @@ export default function UploadPage() {
                 <section className="space-y-4">
                     <div className="space-y-2">
                         <h2 className="text-lg font-semibold">Workbook Preview</h2>
-                        <p className="text-sm text-gray-600">Select a sheet to preview its first 20 rows.</p>
+                        <p className="text-sm text-gray-600">Select a sheet to preview the parsed workbook rows.</p>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -176,10 +181,77 @@ export default function UploadPage() {
                                     </div>
                                 )}
                             </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-base font-semibold">Detected Column Mappings</h3>
+
+                                {visibleTableColumnMappings.length === 0 && (
+                                    <p className="text-sm text-gray-600">
+                                        No column mappings were detected for this sheet.
+                                    </p>
+                                )}
+
+                                {visibleTableColumnMappings.length > 0 && (
+                                    <div className="space-y-2">
+                                        {visibleTableColumnMappings.map((tableColumnMapping, index) => (
+                                            <div
+                                                key={index}
+                                                className="rounded border border-gray-200 bg-gray-50 p-3 text-sm"
+                                            >
+                                                <p className="font-medium">
+                                                    Header row {tableColumnMapping.headerRowNumber}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Exercise column:{" "}
+                                                    {formatColumnIndex(tableColumnMapping.columns.exercise)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Sets column: {formatColumnIndex(tableColumnMapping.columns.sets)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Reps column: {formatColumnIndex(tableColumnMapping.columns.reps)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Prescribed load column:{" "}
+                                                    {formatColumnIndex(tableColumnMapping.columns.prescribedLoad)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Selected load column:{" "}
+                                                    {formatColumnIndex(tableColumnMapping.columns.selectedLoad)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Prescribed RPE column:{" "}
+                                                    {formatColumnIndex(tableColumnMapping.columns.prescribedRpe)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Actual RPE column:{" "}
+                                                    {formatColumnIndex(tableColumnMapping.columns.actualRpe)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Coach notes column:{" "}
+                                                    {formatColumnIndex(tableColumnMapping.columns.coachNotes)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Athlete notes column:{" "}
+                                                    {formatColumnIndex(tableColumnMapping.columns.athleteNotes)}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </section>
             )}
         </main>
     );
+}
+
+function formatColumnIndex(columnIndex: number | null): string {
+    if (columnIndex === null) {
+        return "Not found";
+    }
+
+    return String(columnIndex);
 }

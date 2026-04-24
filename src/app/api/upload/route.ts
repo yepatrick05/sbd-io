@@ -1,7 +1,14 @@
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 
-import type { HeaderRowCandidate, PreviewCell, SheetPreview, TableRegion, WorkbookPreview } from "@/types/workbook";
+import type {
+    HeaderRowCandidate,
+    PreviewCell,
+    SheetPreview,
+    TableColumnMapping,
+    TableRegion,
+    WorkbookPreview,
+} from "@/types/workbook";
 
 export async function POST(request: Request) {
     const formData = await request.formData();
@@ -21,6 +28,7 @@ export async function POST(request: Request) {
         sheets: [],
         headerRowCandidates: [],
         tableRegions: [],
+        tableColumnMappings: [],
     };
 
     workbook.eachSheet((sheet) => {
@@ -29,7 +37,7 @@ export async function POST(request: Request) {
         const rows: PreviewCell[][] = [];
 
         sheet.eachRow((row, rowNumber) => {
-            if (rowNumber > 20) {
+            if (rowNumber > 100) {
                 return;
             }
 
@@ -58,6 +66,8 @@ export async function POST(request: Request) {
     });
 
     preview.tableRegions = detectTableRegions(preview.sheets, preview.headerRowCandidates);
+
+    preview.tableColumnMappings = detectTableColumnMappings(preview.sheets, preview.tableRegions);
 
     return NextResponse.json(preview);
 }
@@ -90,7 +100,10 @@ function detectHeaderRows(sheetName: string, rows: PreviewCell[][]): HeaderRowCa
             possibleLabels: ["notes", "athlete notes"],
         },
     ];
+    const requiredMatchCount = fieldMatchers.length;
 
+    // Only keep rows that match every expected workout header field.
+    // Based on current testing, partial matches are false positives.
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
         const row = rows[rowIndex];
         const matchedFields: string[] = [];
@@ -123,7 +136,7 @@ function detectHeaderRows(sheetName: string, rows: PreviewCell[][]): HeaderRowCa
             }
         }
 
-        if (matchedFields.length >= 2) {
+        if (matchedFields.length === requiredMatchCount) {
             const confidence = Math.round((matchedFields.length / fieldMatchers.length) * 100);
 
             candidates.push({
@@ -197,6 +210,154 @@ function detectTableRegions(sheets: SheetPreview[], headerRowCandidates: HeaderR
     }
 
     return tableRegions;
+}
+
+function detectTableColumnMappings(sheets: SheetPreview[], tableRegions: TableRegion[]): TableColumnMapping[] {
+    const tableColumnMappings: TableColumnMapping[] = [];
+
+    for (const tableRegion of tableRegions) {
+        const sheet = sheets.find((currentSheet) => currentSheet.name === tableRegion.sheetName);
+
+        if (sheet === undefined) {
+            continue;
+        }
+
+        const headerRow = sheet.rows[tableRegion.headerRowNumber - 1];
+
+        if (headerRow === undefined) {
+            continue;
+        }
+
+        const columns: TableColumnMapping["columns"] = {
+            exercise: null,
+            sets: null,
+            reps: null,
+            prescribedLoad: null,
+            selectedLoad: null,
+            prescribedRpe: null,
+            actualRpe: null,
+            coachNotes: null,
+            athleteNotes: null,
+        };
+
+        for (let columnIndex = 0; columnIndex < headerRow.length; columnIndex++) {
+            const cellValue = headerRow[columnIndex];
+
+            if (typeof cellValue !== "string") {
+                continue;
+            }
+
+            const normalisedCellValue = cellValue.trim().toLowerCase();
+
+            if (normalisedCellValue === "") {
+                continue;
+            }
+
+            if (columns.exercise === null) {
+                if (normalisedCellValue.includes("exercise") || normalisedCellValue.includes("movement")) {
+                    columns.exercise = columnIndex;
+                    continue;
+                }
+            }
+
+            if (columns.sets === null) {
+                if (normalisedCellValue === "sets" || normalisedCellValue === "set") {
+                    columns.sets = columnIndex;
+                    continue;
+                }
+            }
+
+            if (columns.reps === null) {
+                if (normalisedCellValue === "reps" || normalisedCellValue === "rep") {
+                    columns.reps = columnIndex;
+                    continue;
+                }
+            }
+
+            if (columns.prescribedLoad === null) {
+                if (
+                    normalisedCellValue.includes("projected load") ||
+                    normalisedCellValue.includes("prescribed load") ||
+                    normalisedCellValue.includes("target load") ||
+                    normalisedCellValue.includes("recommended load")
+                ) {
+                    columns.prescribedLoad = columnIndex;
+                    continue;
+                }
+            }
+
+            if (columns.selectedLoad === null) {
+                if (
+                    normalisedCellValue.includes("selected load") ||
+                    normalisedCellValue.includes("actual load") ||
+                    normalisedCellValue.includes("chosen load") ||
+                    normalisedCellValue.includes("working load") ||
+                    normalisedCellValue === "load"
+                ) {
+                    columns.selectedLoad = columnIndex;
+                    continue;
+                }
+            }
+
+            if (columns.actualRpe === null) {
+                if (
+                    normalisedCellValue.includes("isrpe") ||
+                    normalisedCellValue.includes("is rpe") ||
+                    normalisedCellValue.includes("actual rpe") ||
+                    normalisedCellValue.includes("selected rpe")
+                ) {
+                    columns.actualRpe = columnIndex;
+                    continue;
+                }
+            }
+
+            if (columns.prescribedRpe === null) {
+                if (
+                    normalisedCellValue === "rpe" ||
+                    normalisedCellValue.includes("projected rpe") ||
+                    normalisedCellValue.includes("prescribed rpe") ||
+                    normalisedCellValue.includes("target rpe")
+                ) {
+                    columns.prescribedRpe = columnIndex;
+                    continue;
+                }
+            }
+
+            if (columns.coachNotes === null) {
+                if (
+                    normalisedCellValue.includes("coach comments") ||
+                    normalisedCellValue.includes("coach notes") ||
+                    normalisedCellValue.includes("coach note") ||
+                    normalisedCellValue.includes("notes/cues") ||
+                    normalisedCellValue.includes("notes / cues") ||
+                    normalisedCellValue.includes("coach cues") ||
+                    normalisedCellValue === "notes"
+                ) {
+                    columns.coachNotes = columnIndex;
+                    continue;
+                }
+            }
+
+            if (columns.athleteNotes === null) {
+                if (
+                    normalisedCellValue.includes("athlete notes") ||
+                    normalisedCellValue.includes("athlete note") ||
+                    normalisedCellValue.includes("actual notes") ||
+                    normalisedCellValue.includes("lifter notes")
+                ) {
+                    columns.athleteNotes = columnIndex;
+                }
+            }
+        }
+
+        tableColumnMappings.push({
+            sheetName: tableRegion.sheetName,
+            headerRowNumber: tableRegion.headerRowNumber,
+            columns,
+        });
+    }
+
+    return tableColumnMappings;
 }
 
 function isRowEmpty(rowValues: PreviewCell[]): boolean {
