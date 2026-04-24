@@ -5,7 +5,10 @@ import { NextResponse } from "next/server";
 import type {
     ExerciseRow,
     HeaderRowCandidate,
+    NormalisedBlockPreview,
+    NormalisedSessionPreview,
     PreviewCell,
+    ProgramPreview,
     SheetPreview,
     SessionPreview,
     TableColumnMapping,
@@ -36,6 +39,7 @@ export async function POST(request: Request) {
         exerciseRows: [],
         tableContexts: [],
         sessionPreviews: [],
+        programPreview: null,
     };
 
     workbook.eachSheet((sheet) => {
@@ -81,6 +85,9 @@ export async function POST(request: Request) {
     preview.tableContexts = detectTableContexts(preview.sheets, preview.tableRegions);
 
     preview.sessionPreviews = buildSessionPreviews(preview.tableContexts, preview.exerciseRows);
+
+    // Convert session previews into a cleaner program/block/week/session structure.
+    preview.programPreview = buildProgramPreview(uploadedFile.name, preview.sessionPreviews);
 
     return NextResponse.json(preview);
 }
@@ -538,6 +545,80 @@ function buildSessionPreviews(tableContexts: TableContext[], exerciseRows: Exerc
     });
 
     return sessionPreviews;
+}
+
+function buildProgramPreview(fileName: string, sessionPreviews: SessionPreview[]): ProgramPreview {
+    const blocksBySheetName = new Map<string, NormalisedBlockPreview>();
+
+    for (const sessionPreview of sessionPreviews) {
+        let block = blocksBySheetName.get(sessionPreview.sheetName);
+
+        if (block === undefined) {
+            block = {
+                sheetName: sessionPreview.sheetName,
+                blockName: sessionPreview.sheetName,
+                weeks: [],
+            };
+
+            blocksBySheetName.set(sessionPreview.sheetName, block);
+        }
+
+        let week = block.weeks.find((currentWeek) => currentWeek.weekNumber === sessionPreview.weekNumber);
+
+        if (week === undefined) {
+            week = {
+                weekNumber: sessionPreview.weekNumber,
+                sessions: [],
+            };
+
+            block.weeks.push(week);
+        }
+
+        const normalisedSession: NormalisedSessionPreview = {
+            sheetName: sessionPreview.sheetName,
+            headerRowNumber: sessionPreview.headerRowNumber,
+            weekNumber: sessionPreview.weekNumber,
+            sessionOrder: sessionPreview.sessionOrder,
+            sessionLabel: sessionPreview.sessionLabel,
+            intendedWeekday: sessionPreview.intendedWeekday,
+            exercises: sessionPreview.exercises,
+        };
+
+        week.sessions.push(normalisedSession);
+    }
+
+    const blocks = Array.from(blocksBySheetName.values());
+
+    for (const block of blocks) {
+        block.weeks.sort((firstWeek, secondWeek) => {
+            return compareNullableNumber(firstWeek.weekNumber, secondWeek.weekNumber);
+        });
+
+        for (const week of block.weeks) {
+            week.sessions.sort((firstSession, secondSession) => {
+                const sessionComparison = compareNullableNumber(firstSession.sessionOrder, secondSession.sessionOrder);
+
+                if (sessionComparison !== 0) {
+                    return sessionComparison;
+                }
+
+                return firstSession.headerRowNumber - secondSession.headerRowNumber;
+            });
+        }
+    }
+
+    return {
+        programName: getProgramName(fileName),
+        blocks,
+    };
+}
+
+function getProgramName(fileName: string): string {
+    if (fileName.endsWith(".xlsx")) {
+        return fileName.slice(0, -5);
+    }
+
+    return fileName;
 }
 
 function compareNullableNumber(firstValue: number | null, secondValue: number | null): number {

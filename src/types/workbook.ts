@@ -70,6 +70,32 @@ export interface SessionPreview {
     exercises: ExerciseRow[];
 }
 
+export interface NormalisedSessionPreview {
+    sheetName: string;
+    headerRowNumber: number;
+    weekNumber: number | null;
+    sessionOrder: number | null;
+    sessionLabel: string | null;
+    intendedWeekday: string | null;
+    exercises: ExerciseRow[];
+}
+
+export interface NormalisedWeekPreview {
+    weekNumber: number | null;
+    sessions: NormalisedSessionPreview[];
+}
+
+export interface NormalisedBlockPreview {
+    sheetName: string;
+    blockName: string;
+    weeks: NormalisedWeekPreview[];
+}
+
+export interface ProgramPreview {
+    programName: string;
+    blocks: NormalisedBlockPreview[];
+}
+
 export interface WorkbookPreview {
     sheetNames: string[];
     sheets: SheetPreview[];
@@ -79,4 +105,5 @@ export interface WorkbookPreview {
     exerciseRows: ExerciseRow[];
     tableContexts: TableContext[];
     sessionPreviews: SessionPreview[];
+    programPreview: ProgramPreview | null;
 }

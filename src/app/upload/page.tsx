@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import type {
     HeaderRowCandidate,
+    ProgramPreview,
     SessionPreview,
     TableColumnMapping,
     TableRegion,
@@ -48,6 +49,7 @@ export default function UploadPage() {
     let visibleTableRegions: TableRegion[] = [];
     let visibleTableColumnMappings: TableColumnMapping[] = [];
     let visibleSessionPreviews: SessionPreview[] = [];
+    let programPreview: ProgramPreview | null = null;
 
     if (workbookPreview !== null && selectedSheet !== null) {
         visibleHeaderRowCandidates = workbookPreview.headerRowCandidates.filter((candidate) => {
@@ -65,6 +67,8 @@ export default function UploadPage() {
         visibleSessionPreviews = workbookPreview.sessionPreviews.filter((sessionPreview) => {
             return sessionPreview.sheetName === selectedSheet.name;
         });
+
+        programPreview = workbookPreview.programPreview;
     }
 
     return (
@@ -332,6 +336,121 @@ export default function UploadPage() {
                                                                 Athlete notes:{" "}
                                                                 {formatTextValue(exerciseRow.athleteNotes)}
                                                             </p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-base font-semibold">Normalised Program Preview</h3>
+
+                                {programPreview === null && (
+                                    <p className="text-sm text-gray-600">
+                                        No program preview was created.
+                                    </p>
+                                )}
+
+                                {programPreview !== null && (
+                                    <div className="space-y-3">
+                                        <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
+                                            <p className="font-medium">Program: {programPreview.programName}</p>
+                                        </div>
+
+                                        {programPreview.blocks.map((block, blockIndex) => (
+                                            <div
+                                                key={blockIndex}
+                                                className="rounded border border-gray-200 bg-gray-50 p-3 text-sm"
+                                            >
+                                                <p className="font-medium">Block: {block.blockName}</p>
+                                                <p className="text-gray-600">Sheet: {block.sheetName}</p>
+
+                                                <div className="mt-3 space-y-3">
+                                                    {block.weeks.map((week, weekIndex) => (
+                                                        <div
+                                                            key={weekIndex}
+                                                            className="rounded border border-gray-200 bg-white p-3"
+                                                        >
+                                                            <p className="font-medium">
+                                                                Week {formatNumberValue(week.weekNumber)}
+                                                            </p>
+
+                                                            <div className="mt-3 space-y-3">
+                                                                {week.sessions.map((session, sessionIndex) => (
+                                                                    <div
+                                                                        key={sessionIndex}
+                                                                        className="rounded border border-gray-200 bg-gray-50 p-3"
+                                                                    >
+                                                                        <p className="font-medium">
+                                                                            Session {formatNumberValue(session.sessionOrder)}
+                                                                        </p>
+                                                                        <p className="text-gray-600">
+                                                                            Label: {formatTextValue(session.sessionLabel)}
+                                                                        </p>
+                                                                        <p className="text-gray-600">
+                                                                            Intended weekday:{" "}
+                                                                            {formatTextValue(session.intendedWeekday)}
+                                                                        </p>
+                                                                        <p className="text-gray-600">
+                                                                            Header row: {session.headerRowNumber}
+                                                                        </p>
+                                                                        <p className="text-gray-600">
+                                                                            Sheet: {session.sheetName}
+                                                                        </p>
+
+                                                                        <div className="mt-3 space-y-2">
+                                                                            <p className="font-medium">Exercises</p>
+
+                                                                            {session.exercises.map((exercise, exerciseIndex) => (
+                                                                                <div
+                                                                                    key={exerciseIndex}
+                                                                                    className="rounded border border-gray-200 bg-white p-3"
+                                                                                >
+                                                                                    <p className="font-medium">
+                                                                                        {formatTextValue(exercise.exercise)}
+                                                                                    </p>
+                                                                                    <p className="text-gray-600">
+                                                                                        Source row: {exercise.sourceRowNumber}
+                                                                                    </p>
+                                                                                    <p className="text-gray-600">
+                                                                                        Sets: {formatTextValue(exercise.sets)}
+                                                                                    </p>
+                                                                                    <p className="text-gray-600">
+                                                                                        Reps: {formatTextValue(exercise.reps)}
+                                                                                    </p>
+                                                                                    <p className="text-gray-600">
+                                                                                        Prescribed load:{" "}
+                                                                                        {formatTextValue(exercise.prescribedLoad)}
+                                                                                    </p>
+                                                                                    <p className="text-gray-600">
+                                                                                        Prescribed RPE:{" "}
+                                                                                        {formatTextValue(exercise.prescribedRpe)}
+                                                                                    </p>
+                                                                                    <p className="text-gray-600">
+                                                                                        Coach notes:{" "}
+                                                                                        {formatTextValue(exercise.coachNotes)}
+                                                                                    </p>
+                                                                                    <p className="text-gray-600">
+                                                                                        Selected load:{" "}
+                                                                                        {formatTextValue(exercise.selectedLoad)}
+                                                                                    </p>
+                                                                                    <p className="text-gray-600">
+                                                                                        Actual RPE:{" "}
+                                                                                        {formatTextValue(exercise.actualRpe)}
+                                                                                    </p>
+                                                                                    <p className="text-gray-600">
+                                                                                        Athlete notes:{" "}
+                                                                                        {formatTextValue(exercise.athleteNotes)}
+                                                                                    </p>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
