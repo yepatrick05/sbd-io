@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import type { HeaderRowCandidate, WorkbookPreview } from "@/types/workbook";
+import type { HeaderRowCandidate, TableRegion, WorkbookPreview } from "@/types/workbook";
 
 export default function UploadPage() {
     const [workbookPreview, setWorkbookPreview] = useState<WorkbookPreview | null>(null);
@@ -39,10 +39,15 @@ export default function UploadPage() {
     }
 
     let visibleHeaderRowCandidates: HeaderRowCandidate[] = [];
+    let visibleTableRegions: TableRegion[] = [];
 
     if (workbookPreview !== null && selectedSheet !== null) {
         visibleHeaderRowCandidates = workbookPreview.headerRowCandidates.filter((candidate) => {
             return candidate.sheetName === selectedSheet.name;
+        });
+
+        visibleTableRegions = workbookPreview.tableRegions.filter((tableRegion) => {
+            return tableRegion.sheetName === selectedSheet.name;
         });
     }
 
@@ -138,6 +143,34 @@ export default function UploadPage() {
                                                 <p className="text-gray-600">
                                                     Matched fields: {candidate.matchedFields.join(", ")}
                                                 </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-base font-semibold">Detected Table Regions</h3>
+
+                                {visibleTableRegions.length === 0 && (
+                                    <p className="text-sm text-gray-600">
+                                        No likely table regions were detected for this sheet.
+                                    </p>
+                                )}
+
+                                {visibleTableRegions.length > 0 && (
+                                    <div className="space-y-2">
+                                        {visibleTableRegions.map((tableRegion, index) => (
+                                            <div
+                                                key={index}
+                                                className="rounded border border-gray-200 bg-gray-50 p-3 text-sm"
+                                            >
+                                                <p className="font-medium">Header row {tableRegion.headerRowNumber}</p>
+                                                <p className="text-gray-600">
+                                                    Table rows: {tableRegion.startRowNumber} to{" "}
+                                                    {tableRegion.endRowNumber}
+                                                </p>
+                                                <p className="text-gray-600">Row count: {tableRegion.rowCount}</p>
                                             </div>
                                         ))}
                                     </div>

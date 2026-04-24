@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 
-import type { HeaderRowCandidate, PreviewCell, WorkbookPreview } from "@/types/workbook";
+import type { HeaderRowCandidate, PreviewCell, SheetPreview, TableRegion, WorkbookPreview } from "@/types/workbook";
 
 export async function POST(request: Request) {
     const formData = await request.formData();
@@ -20,6 +20,7 @@ export async function POST(request: Request) {
         sheetNames: [],
         sheets: [],
         headerRowCandidates: [],
+        tableRegions: [],
     };
 
     workbook.eachSheet((sheet) => {
@@ -55,6 +56,8 @@ export async function POST(request: Request) {
             preview.headerRowCandidates.push(headerRowCandidate);
         }
     });
+
+    preview.tableRegions = detectTableRegions(preview.sheets, preview.headerRowCandidates);
 
     return NextResponse.json(preview);
 }
@@ -133,6 +136,83 @@ function detectHeaderRows(sheetName: string, rows: PreviewCell[][]): HeaderRowCa
     }
 
     return candidates;
+}
+
+function detectTableRegions(sheets: SheetPreview[], headerRowCandidates: HeaderRowCandidate[]): TableRegion[] {
+    const tableRegions: TableRegion[] = [];
+    const consecutiveEmptyRowsLimit = 2;
+
+    for (const sheet of sheets) {
+        const sheetHeaderCandidates = headerRowCandidates
+            .filter((candidate) => candidate.sheetName === sheet.name)
+            .sort((firstCandidate, secondCandidate) => firstCandidate.rowNumber - secondCandidate.rowNumber);
+
+        for (let candidateIndex = 0; candidateIndex < sheetHeaderCandidates.length; candidateIndex++) {
+            const headerCandidate = sheetHeaderCandidates[candidateIndex];
+            const nextHeaderCandidate = sheetHeaderCandidates[candidateIndex + 1];
+
+            const startRowNumber = headerCandidate.rowNumber + 1;
+
+            if (startRowNumber > sheet.rows.length) {
+                continue;
+            }
+
+            let endRowNumber = sheet.rows.length;
+
+            if (nextHeaderCandidate !== undefined) {
+                endRowNumber = nextHeaderCandidate.rowNumber - 1;
+            }
+
+            let consecutiveEmptyRowCount = 0;
+
+            for (let rowNumber = startRowNumber; rowNumber <= endRowNumber; rowNumber++) {
+                const rowValues = sheet.rows[rowNumber - 1];
+
+                if (isRowEmpty(rowValues)) {
+                    consecutiveEmptyRowCount += 1;
+                } else {
+                    consecutiveEmptyRowCount = 0;
+                }
+
+                if (consecutiveEmptyRowCount >= consecutiveEmptyRowsLimit) {
+                    endRowNumber = rowNumber - consecutiveEmptyRowsLimit;
+                    break;
+                }
+            }
+
+            if (endRowNumber < startRowNumber) {
+                endRowNumber = startRowNumber - 1;
+            }
+
+            const rowCount = endRowNumber - startRowNumber + 1;
+
+            tableRegions.push({
+                sheetName: sheet.name,
+                headerRowNumber: headerCandidate.rowNumber,
+                startRowNumber,
+                endRowNumber,
+                rowCount: rowCount > 0 ? rowCount : 0,
+            });
+        }
+    }
+
+    return tableRegions;
+}
+
+function isRowEmpty(rowValues: PreviewCell[]): boolean {
+    for (const cellValue of rowValues) {
+        if (cellValue === null) {
+            continue;
+        }
+
+        if (typeof cellValue === "string" && cellValue.trim() === "") {
+            continue;
+        }
+
+        return false;
+    }
+
+    return true;
 }
 
 function serialiseCellValue(value: unknown): PreviewCell {
