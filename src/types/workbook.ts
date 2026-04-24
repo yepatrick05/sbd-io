@@ -5,7 +5,15 @@ export interface SheetPreview {
     rows: PreviewCell[][];
 }
 
+export interface HeaderRowCandidate {
+    sheetName: string;
+    rowNumber: number;
+    confidence: number;
+    matchedFields: string[];
+}
+
 export interface WorkbookPreview {
     sheetNames: string[];
     sheets: SheetPreview[];
+    headerRowCandidates: HeaderRowCandidate[];
 }
