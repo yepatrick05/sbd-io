@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import type { Cell } from "exceljs";
 import { NextResponse } from "next/server";
 
 import type {
@@ -6,6 +7,7 @@ import type {
     HeaderRowCandidate,
     PreviewCell,
     SheetPreview,
+    SessionPreview,
     TableColumnMapping,
     TableContext,
     TableRegion,
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
         tableColumnMappings: [],
         exerciseRows: [],
         tableContexts: [],
+        sessionPreviews: [],
     };
 
     workbook.eachSheet((sheet) => {
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
 
             for (let columnNumber = 1; columnNumber <= row.cellCount; columnNumber++) {
                 const cell = row.getCell(columnNumber);
-                const value = serialiseCellValue(cell.value);
+                const value = serialiseCell(cell);
 
                 rowValues.push(value);
             }
@@ -76,6 +79,8 @@ export async function POST(request: Request) {
     preview.exerciseRows = extractExerciseRows(preview.sheets, preview.tableRegions, preview.tableColumnMappings);
 
     preview.tableContexts = detectTableContexts(preview.sheets, preview.tableRegions);
+
+    preview.sessionPreviews = buildSessionPreviews(preview.tableContexts, preview.exerciseRows);
 
     return NextResponse.json(preview);
 }
@@ -494,6 +499,63 @@ function detectTableContexts(sheets: SheetPreview[], tableRegions: TableRegion[]
     return tableContexts;
 }
 
+function buildSessionPreviews(tableContexts: TableContext[], exerciseRows: ExerciseRow[]): SessionPreview[] {
+    const sessionPreviews: SessionPreview[] = [];
+
+    for (const tableContext of tableContexts) {
+        const exercises = exerciseRows.filter((exerciseRow) => {
+            return (
+                exerciseRow.sheetName === tableContext.sheetName &&
+                exerciseRow.headerRowNumber === tableContext.headerRowNumber
+            );
+        });
+
+        sessionPreviews.push({
+            sheetName: tableContext.sheetName,
+            headerRowNumber: tableContext.headerRowNumber,
+            weekNumber: tableContext.weekNumber,
+            sessionOrder: tableContext.sessionOrder,
+            sessionLabel: tableContext.sessionLabel,
+            intendedWeekday: tableContext.intendedWeekday,
+            exercises,
+        });
+    }
+
+    sessionPreviews.sort((firstSession, secondSession) => {
+        const weekComparison = compareNullableNumber(firstSession.weekNumber, secondSession.weekNumber);
+
+        if (weekComparison !== 0) {
+            return weekComparison;
+        }
+
+        const sessionComparison = compareNullableNumber(firstSession.sessionOrder, secondSession.sessionOrder);
+
+        if (sessionComparison !== 0) {
+            return sessionComparison;
+        }
+
+        return firstSession.headerRowNumber - secondSession.headerRowNumber;
+    });
+
+    return sessionPreviews;
+}
+
+function compareNullableNumber(firstValue: number | null, secondValue: number | null): number {
+    if (firstValue === null && secondValue === null) {
+        return 0;
+    }
+
+    if (firstValue === null) {
+        return 1;
+    }
+
+    if (secondValue === null) {
+        return -1;
+    }
+
+    return firstValue - secondValue;
+}
+
 function parseWeekNumber(value: string): number | null {
     const weekMatch = value.match(/^week\s+(\d+)$/i);
 
@@ -550,6 +612,89 @@ function getMappedCellValue(rowValues: PreviewCell[], columnIndex: number | null
     return stringValue;
 }
 
+function serialiseCell(cell: Cell): PreviewCell {
+    const value = cell.value;
+
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    if (typeof value === "number") {
+        if (typeof cell.numFmt === "string" && cell.numFmt.includes("%")) {
+            return formatPercentageValue(value);
+        }
+
+        return value;
+    }
+
+    if (typeof value === "string") {
+        return value;
+    }
+
+    if (typeof value === "boolean") {
+        return value;
+    }
+
+    if (value instanceof Date) {
+        if (typeof cell.numFmt === "string" && isMonthDayFormat(cell.numFmt)) {
+            return formatMonthDayValue(value);
+        }
+
+        return value.toISOString();
+    }
+
+    const cellText = getCellText(cell);
+
+    if (cellText !== null && cellText.trim() !== "") {
+        return cellText.trim();
+    }
+
+    return String(value);
+}
+
+function getCellText(cell: Cell): string | null {
+    try {
+        if (cell.text === undefined || cell.text === null) {
+            return null;
+        }
+
+        return cell.text;
+    } catch {
+        return null;
+    }
+}
+
+function formatPercentageValue(value: number): string {
+    const percentageValue = value * 100;
+
+    if (Number.isInteger(percentageValue)) {
+        return `${percentageValue}%`;
+    }
+
+    return `${percentageValue.toFixed(2).replace(/\.?0+$/, "")}%`;
+}
+
+function isMonthDayFormat(format: string): boolean {
+    const normalisedFormat = format.toLowerCase();
+
+    if (normalisedFormat === "m-d" || normalisedFormat === "m/d") {
+        return true;
+    }
+
+    if (normalisedFormat === "mm-dd" || normalisedFormat === "mm/dd") {
+        return true;
+    }
+
+    return false;
+}
+
+function formatMonthDayValue(value: Date): string {
+    const month = value.getUTCMonth() + 1;
+    const day = value.getUTCDate();
+
+    return `${month}-${day}`;
+}
+
 function isRowEmpty(rowValues: PreviewCell[]): boolean {
     for (const cellValue of rowValues) {
         if (cellValue === null) {
@@ -564,28 +709,4 @@ function isRowEmpty(rowValues: PreviewCell[]): boolean {
     }
 
     return true;
-}
-
-function serialiseCellValue(value: unknown): PreviewCell {
-    if (value === null || value === undefined) {
-        return null;
-    }
-
-    if (typeof value === "string") {
-        return value;
-    }
-
-    if (typeof value === "number") {
-        return value;
-    }
-
-    if (typeof value === "boolean") {
-        return value;
-    }
-
-    if (value instanceof Date) {
-        return value.toISOString();
-    }
-
-    return String(value);
 }

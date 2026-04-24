@@ -60,6 +60,16 @@ export interface TableContext {
     intendedWeekday: string | null;
 }
 
+export interface SessionPreview {
+    sheetName: string;
+    headerRowNumber: number;
+    weekNumber: number | null;
+    sessionOrder: number | null;
+    sessionLabel: string | null;
+    intendedWeekday: string | null;
+    exercises: ExerciseRow[];
+}
+
 export interface WorkbookPreview {
     sheetNames: string[];
     sheets: SheetPreview[];
@@ -68,4 +78,5 @@ export interface WorkbookPreview {
     tableColumnMappings: TableColumnMapping[];
     exerciseRows: ExerciseRow[];
     tableContexts: TableContext[];
+    sessionPreviews: SessionPreview[];
 }

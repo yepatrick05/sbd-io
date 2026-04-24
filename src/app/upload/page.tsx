@@ -3,10 +3,9 @@
 import { useState } from "react";
 
 import type {
-    ExerciseRow,
     HeaderRowCandidate,
+    SessionPreview,
     TableColumnMapping,
-    TableContext,
     TableRegion,
     WorkbookPreview,
 } from "@/types/workbook";
@@ -48,8 +47,7 @@ export default function UploadPage() {
     let visibleHeaderRowCandidates: HeaderRowCandidate[] = [];
     let visibleTableRegions: TableRegion[] = [];
     let visibleTableColumnMappings: TableColumnMapping[] = [];
-    let visibleExerciseRows: ExerciseRow[] = [];
-    let visibleTableContexts: TableContext[] = [];
+    let visibleSessionPreviews: SessionPreview[] = [];
 
     if (workbookPreview !== null && selectedSheet !== null) {
         visibleHeaderRowCandidates = workbookPreview.headerRowCandidates.filter((candidate) => {
@@ -64,12 +62,8 @@ export default function UploadPage() {
             return tableColumnMapping.sheetName === selectedSheet.name;
         });
 
-        visibleExerciseRows = workbookPreview.exerciseRows.filter((exerciseRow) => {
-            return exerciseRow.sheetName === selectedSheet.name;
-        });
-
-        visibleTableContexts = workbookPreview.tableContexts.filter((tableContext) => {
-            return tableContext.sheetName === selectedSheet.name;
+        visibleSessionPreviews = workbookPreview.sessionPreviews.filter((sessionPreview) => {
+            return sessionPreview.sheetName === selectedSheet.name;
         });
     }
 
@@ -259,98 +253,90 @@ export default function UploadPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <h3 className="text-base font-semibold">Extracted Exercise Rows</h3>
+                                <h3 className="text-base font-semibold">Session Previews</h3>
 
-                                {visibleTableContexts.length === 0 && (
+                                {visibleSessionPreviews.length === 0 && (
                                     <p className="text-sm text-gray-600">
-                                        No table contexts were detected for this sheet.
+                                        No session previews were created for this sheet.
                                     </p>
                                 )}
 
-                                {visibleTableContexts.length > 0 && (
+                                {visibleSessionPreviews.length > 0 && (
                                     <div className="space-y-2">
-                                        {visibleTableContexts.map((tableContext, index) => {
-                                            const matchingExerciseRows = visibleExerciseRows.filter((exerciseRow) => {
-                                                return exerciseRow.headerRowNumber === tableContext.headerRowNumber;
-                                            });
+                                        {visibleSessionPreviews.map((sessionPreview, index) => (
+                                            <div
+                                                key={index}
+                                                className="rounded border border-gray-200 bg-gray-50 p-3 text-sm"
+                                            >
+                                                <p className="font-medium">
+                                                    Header row {sessionPreview.headerRowNumber}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Week number: {formatNumberValue(sessionPreview.weekNumber)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Session order: {formatNumberValue(sessionPreview.sessionOrder)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Session label: {formatTextValue(sessionPreview.sessionLabel)}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Intended weekday: {formatTextValue(sessionPreview.intendedWeekday)}
+                                                </p>
 
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className="rounded border border-gray-200 bg-gray-50 p-3 text-sm"
-                                                >
-                                                    <p className="font-medium">
-                                                        Header row {tableContext.headerRowNumber}
-                                                    </p>
-                                                    <p className="text-gray-600">
-                                                        Week number: {formatNumberValue(tableContext.weekNumber)}
-                                                    </p>
-                                                    <p className="text-gray-600">
-                                                        Session order: {formatNumberValue(tableContext.sessionOrder)}
-                                                    </p>
-                                                    <p className="text-gray-600">
-                                                        Session label: {formatTextValue(tableContext.sessionLabel)}
-                                                    </p>
-                                                    <p className="text-gray-600">
-                                                        Intended weekday:{" "}
-                                                        {formatTextValue(tableContext.intendedWeekday)}
-                                                    </p>
+                                                <div className="mt-3 space-y-2">
+                                                    <p className="font-medium">Exercises</p>
 
-                                                    <div className="mt-3 space-y-2">
-                                                        <p className="font-medium">Extracted Exercise Rows</p>
+                                                    {sessionPreview.exercises.length === 0 && (
+                                                        <p className="text-gray-600">
+                                                            No exercise rows were extracted for this table.
+                                                        </p>
+                                                    )}
 
-                                                        {matchingExerciseRows.length === 0 && (
-                                                            <p className="text-gray-600">
-                                                                No exercise rows were extracted for this table.
+                                                    {sessionPreview.exercises.map((exerciseRow, exerciseRowIndex) => (
+                                                        <div
+                                                            key={exerciseRowIndex}
+                                                            className="rounded border border-gray-200 bg-white p-3"
+                                                        >
+                                                            <p className="font-medium">
+                                                                Source row {exerciseRow.sourceRowNumber}
                                                             </p>
-                                                        )}
-
-                                                        {matchingExerciseRows.map((exerciseRow, exerciseRowIndex) => (
-                                                            <div
-                                                                key={exerciseRowIndex}
-                                                                className="rounded border border-gray-200 bg-white p-3"
-                                                            >
-                                                                <p className="font-medium">
-                                                                    Source row {exerciseRow.sourceRowNumber}
-                                                                </p>
-                                                                <p className="text-gray-600">
-                                                                    Exercise: {formatTextValue(exerciseRow.exercise)}
-                                                                </p>
-                                                                <p className="text-gray-600">
-                                                                    Sets: {formatTextValue(exerciseRow.sets)}
-                                                                </p>
-                                                                <p className="text-gray-600">
-                                                                    Reps: {formatTextValue(exerciseRow.reps)}
-                                                                </p>
-                                                                <p className="text-gray-600">
-                                                                    Prescribed load:{" "}
-                                                                    {formatTextValue(exerciseRow.prescribedLoad)}
-                                                                </p>
-                                                                <p className="text-gray-600">
-                                                                    Prescribed RPE:{" "}
-                                                                    {formatTextValue(exerciseRow.prescribedRpe)}
-                                                                </p>
-                                                                <p className="text-gray-600">
-                                                                    Coach notes:{" "}
-                                                                    {formatTextValue(exerciseRow.coachNotes)}
-                                                                </p>
-                                                                <p className="text-gray-600">
-                                                                    Selected load:{" "}
-                                                                    {formatTextValue(exerciseRow.selectedLoad)}
-                                                                </p>
-                                                                <p className="text-gray-600">
-                                                                    Actual RPE: {formatTextValue(exerciseRow.actualRpe)}
-                                                                </p>
-                                                                <p className="text-gray-600">
-                                                                    Athlete notes:{" "}
-                                                                    {formatTextValue(exerciseRow.athleteNotes)}
-                                                                </p>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                                            <p className="text-gray-600">
+                                                                Exercise: {formatTextValue(exerciseRow.exercise)}
+                                                            </p>
+                                                            <p className="text-gray-600">
+                                                                Sets: {formatTextValue(exerciseRow.sets)}
+                                                            </p>
+                                                            <p className="text-gray-600">
+                                                                Reps: {formatTextValue(exerciseRow.reps)}
+                                                            </p>
+                                                            <p className="text-gray-600">
+                                                                Prescribed load:{" "}
+                                                                {formatTextValue(exerciseRow.prescribedLoad)}
+                                                            </p>
+                                                            <p className="text-gray-600">
+                                                                Prescribed RPE:{" "}
+                                                                {formatTextValue(exerciseRow.prescribedRpe)}
+                                                            </p>
+                                                            <p className="text-gray-600">
+                                                                Coach notes: {formatTextValue(exerciseRow.coachNotes)}
+                                                            </p>
+                                                            <p className="text-gray-600">
+                                                                Selected load:{" "}
+                                                                {formatTextValue(exerciseRow.selectedLoad)}
+                                                            </p>
+                                                            <p className="text-gray-600">
+                                                                Actual RPE: {formatTextValue(exerciseRow.actualRpe)}
+                                                            </p>
+                                                            <p className="text-gray-600">
+                                                                Athlete notes:{" "}
+                                                                {formatTextValue(exerciseRow.athleteNotes)}
+                                                            </p>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            );
-                                        })}
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                             </div>
