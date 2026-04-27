@@ -48,6 +48,7 @@ model Session {
   sessionOrder     Int
   label            String?
   intendedWeekday  String?
+  completedAt      DateTime?
   sheetName        String
   headerRowNumber  Int
   startRowNumber   Int

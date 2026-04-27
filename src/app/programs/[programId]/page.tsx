@@ -61,6 +61,9 @@ export default async function ProgramDetailPage({
                 <p className="text-sm text-gray-600">
                     Created: {formatDate(program.createdAt)}
                 </p>
+                <Link href={`/programs/${program.id}/next`} className="text-sm text-gray-600 underline">
+                    View next session
+                </Link>
             </div>
 
             {program.blocks.length === 0 && (
