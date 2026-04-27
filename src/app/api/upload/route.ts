@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     preview.tableColumnMappings = detectTableColumnMappings(preview.sheets, preview.tableRegions);
     preview.exerciseRows = extractExerciseRows(preview.sheets, preview.tableRegions, preview.tableColumnMappings);
     preview.tableContexts = detectTableContexts(preview.sheets, preview.tableRegions);
-    preview.sessionPreviews = buildSessionPreviews(preview.tableContexts, preview.exerciseRows);
+    preview.sessionPreviews = buildSessionPreviews(preview.tableRegions, preview.tableContexts, preview.exerciseRows);
     preview.programPreview = buildProgramPreview(uploadedFile.name, preview.sessionPreviews);
     preview.validationIssues = validateProgramPreview(preview.programPreview);
 
@@ -572,23 +572,42 @@ function detectTableContexts(sheets: SheetPreview[], tableRegions: TableRegion[]
     return tableContexts;
 }
 
-function buildSessionPreviews(tableContexts: TableContext[], exerciseRows: ExerciseRow[]): SessionPreview[] {
+function buildSessionPreviews(
+    tableRegions: TableRegion[],
+    tableContexts: TableContext[],
+    exerciseRows: ExerciseRow[],
+): SessionPreview[] {
     const sessionPreviews: SessionPreview[] = [];
 
-    for (const tableContext of tableContexts) {
+    for (const tableRegion of tableRegions) {
+        const tableContext = tableContexts.find((currentTableContext) => {
+            return (
+                currentTableContext.sheetName === tableRegion.sheetName &&
+                currentTableContext.headerRowNumber === tableRegion.headerRowNumber &&
+                currentTableContext.headerStartColumnIndex === tableRegion.headerStartColumnIndex
+            );
+        });
+
+        if (tableContext === undefined) {
+            continue;
+        }
+
         const exercises = exerciseRows.filter((exerciseRow) => {
             return (
-                exerciseRow.sheetName === tableContext.sheetName &&
-                exerciseRow.headerRowNumber === tableContext.headerRowNumber &&
-                exerciseRow.headerStartColumnIndex === tableContext.headerStartColumnIndex
+                exerciseRow.sheetName === tableRegion.sheetName &&
+                exerciseRow.headerRowNumber === tableRegion.headerRowNumber &&
+                exerciseRow.headerStartColumnIndex === tableRegion.headerStartColumnIndex
             );
         });
 
         sessionPreviews.push({
-            sheetName: tableContext.sheetName,
-            headerRowNumber: tableContext.headerRowNumber,
-            startColumnIndex: tableContext.startColumnIndex,
-            headerStartColumnIndex: tableContext.headerStartColumnIndex,
+            sheetName: tableRegion.sheetName,
+            headerRowNumber: tableRegion.headerRowNumber,
+            startColumnIndex: tableRegion.startColumnIndex,
+            headerStartColumnIndex: tableRegion.headerStartColumnIndex,
+            startRowNumber: tableRegion.startRowNumber,
+            endRowNumber: tableRegion.endRowNumber,
+            endColumnIndex: tableRegion.endColumnIndex,
             weekNumber: tableContext.weekNumber,
             sessionOrder: tableContext.sessionOrder,
             sessionLabel: tableContext.sessionLabel,
@@ -652,6 +671,9 @@ function buildProgramPreview(fileName: string, sessionPreviews: SessionPreview[]
             headerRowNumber: sessionPreview.headerRowNumber,
             startColumnIndex: sessionPreview.startColumnIndex,
             headerStartColumnIndex: sessionPreview.headerStartColumnIndex,
+            startRowNumber: sessionPreview.startRowNumber,
+            endRowNumber: sessionPreview.endRowNumber,
+            endColumnIndex: sessionPreview.endColumnIndex,
             weekNumber: sessionPreview.weekNumber,
             sessionOrder: sessionPreview.sessionOrder,
             sessionLabel: sessionPreview.sessionLabel,

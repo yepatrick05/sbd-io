@@ -77,6 +77,9 @@ export interface SessionPreview {
     headerRowNumber: number;
     startColumnIndex: number;
     headerStartColumnIndex: number;
+    startRowNumber: number;
+    endRowNumber: number;
+    endColumnIndex: number;
     weekNumber: number | null;
     sessionOrder: number | null;
     sessionLabel: string | null;
@@ -89,6 +92,9 @@ export interface NormalisedSessionPreview {
     headerRowNumber: number;
     startColumnIndex: number;
     headerStartColumnIndex: number;
+    startRowNumber: number;
+    endRowNumber: number;
+    endColumnIndex: number;
     weekNumber: number | null;
     sessionOrder: number | null;
     sessionLabel: string | null;
