@@ -128,6 +128,7 @@ export interface ValidationIssue {
 }
 
 export interface WorkbookPreview {
+    originalFileName: string;
     sheetNames: string[];
     sheets: SheetPreview[];
     headerRowCandidates: HeaderRowCandidate[];

@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,4 +5,115 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model Program {
+  id            String         @id @default(cuid())
+  name          String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  blocks        Block[]
+  importSources ImportSource[]
+}
+
+model Block {
+  id         String   @id @default(cuid())
+  programId  String
+  name       String
+  blockOrder Int
+  sheetName  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  program    Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  weeks      Week[]
+
+  @@index([programId, blockOrder])
+}
+
+model Week {
+  id         String    @id @default(cuid())
+  blockId    String
+  weekNumber Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  block      Block     @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  sessions   Session[]
+
+  @@index([blockId, weekNumber])
+}
+
+model Session {
+  id               String                 @id @default(cuid())
+  weekId           String
+  sessionOrder     Int
+  label            String?
+  intendedWeekday  String?
+  sheetName        String
+  headerRowNumber  Int
+  startRowNumber   Int
+  endRowNumber     Int
+  startColumnIndex Int
+  endColumnIndex   Int
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  week             Week                   @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  exercises        ExercisePrescription[]
+
+  @@index([weekId, sessionOrder])
+}
+
+model ExercisePrescription {
+  id              String        @id @default(cuid())
+  sessionId       String
+  rowOrder        Int
+  rawExerciseName String
+  movementPattern String?
+  variationName   String?
+  priorityTag     String?
+  sets            String?
+  reps            String?
+  prescribedLoad  String?
+  prescribedRpe   String?
+  coachNotes      String?
+  sourceRowNumber Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  logs            ExerciseLog[]
+
+  @@index([sessionId, rowOrder])
+}
+
+model ExerciseLog {
+  id                     String               @id @default(cuid())
+  exercisePrescriptionId String
+  selectedLoad           String?
+  actualReps             String?
+  actualRpe              String?
+  athleteNotes           String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  exercisePrescription   ExercisePrescription @relation(fields: [exercisePrescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([exercisePrescriptionId])
+}
+
+model ImportSource {
+  id               String   @id @default(cuid())
+  programId        String
+  sourceType       String
+  originalFileName String
+  sheetName        String?
+  headerRowNumber  Int?
+  sourceRowNumber  Int?
+  startRowNumber   Int?
+  endRowNumber     Int?
+  startColumnIndex Int?
+  endColumnIndex   Int?
+  uploadedAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  program          Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId])
 }

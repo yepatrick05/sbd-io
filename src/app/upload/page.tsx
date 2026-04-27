@@ -19,8 +19,9 @@ export default function UploadPage() {
     const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
     const [expandedSessionKeys, setExpandedSessionKeys] = useState<string[]>([]);
     const [showDebugDetails, setShowDebugDetails] = useState(false);
+    const [isSavingImport, setIsSavingImport] = useState(false);
 
-    async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
+    async function handleUpload(event: React.SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
 
         const formData = new FormData(event.currentTarget);
@@ -36,6 +37,7 @@ export default function UploadPage() {
         setConfirmMessage(null);
         setExpandedSessionKeys([]);
         setShowDebugDetails(false);
+        setIsSavingImport(false);
 
         if (preview.sheets.length > 0) {
             setSelectedSheetName(preview.sheets[0].name);
@@ -81,13 +83,44 @@ export default function UploadPage() {
     const hasBlockingErrors = totalErrorCount > 0;
     const reviewSummary = buildReviewSummary(programPreview, validationIssues);
 
-    function handleConfirmImport() {
+    async function handleConfirmImport() {
         if (hasBlockingErrors) {
-            setConfirmMessage("Failed to import due to validation errors.");
+            setConfirmMessage("Import cannot be confirmed yet because there are blocking validation errors.");
             return;
         }
 
-        setConfirmMessage("not implemented");
+        if (workbookPreview === null) {
+            setConfirmMessage("Workbook preview is missing.");
+            return;
+        }
+
+        setIsSavingImport(true);
+        setConfirmMessage(null);
+
+        try {
+            const response = await fetch("/api/import", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    workbookPreview,
+                }),
+            });
+
+            const responseBody = (await response.json()) as { error?: string; programId?: string };
+
+            if (!response.ok) {
+                setConfirmMessage(responseBody.error ?? "Failed to save import.");
+                return;
+            }
+
+            setConfirmMessage(`Import saved successfully. Program id: ${responseBody.programId}`);
+        } catch {
+            setConfirmMessage("Failed to save import.");
+        } finally {
+            setIsSavingImport(false);
+        }
     }
 
     function toggleSession(session: NormalisedSessionPreview) {
@@ -167,14 +200,14 @@ export default function UploadPage() {
                             <button
                                 type="button"
                                 onClick={handleConfirmImport}
-                                disabled={hasBlockingErrors}
+                                disabled={hasBlockingErrors || isSavingImport}
                                 className={
-                                    hasBlockingErrors
+                                    hasBlockingErrors || isSavingImport
                                         ? "rounded border border-gray-300 bg-gray-200 px-4 py-2 text-sm text-gray-500"
                                         : "rounded border border-black bg-black px-4 py-2 text-sm text-white"
                                 }
                             >
-                                Confirm Import
+                                {isSavingImport ? "Saving Import..." : "Confirm Import"}
                             </button>
 
                             {confirmMessage !== null && <p className="text-sm text-gray-600">{confirmMessage}</p>}
@@ -409,14 +442,14 @@ export default function UploadPage() {
                             <button
                                 type="button"
                                 onClick={handleConfirmImport}
-                                disabled={hasBlockingErrors}
+                                disabled={hasBlockingErrors || isSavingImport}
                                 className={
-                                    hasBlockingErrors
+                                    hasBlockingErrors || isSavingImport
                                         ? "rounded border border-gray-300 bg-gray-200 px-4 py-2 text-sm text-gray-500"
                                         : "rounded border border-black bg-black px-4 py-2 text-sm text-white"
                                 }
                             >
-                                Confirm Import
+                                {isSavingImport ? "Saving Import..." : "Confirm Import"}
                             </button>
 
                             {hasBlockingErrors && (

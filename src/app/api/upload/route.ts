@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     await workbook.xlsx.load(arrayBuffer);
 
     const preview: WorkbookPreview = {
+        originalFileName: uploadedFile.name,
         sheetNames: [],
         sheets: [],
         headerRowCandidates: [],
