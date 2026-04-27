@@ -396,11 +396,12 @@ export default async function SessionDetailPage({
                             programId={programId}
                             sessionId={session.id}
                             saveLogsAction={saveLogs}
+                            markSessionCompleteAction={session.completedAt === null ? markSessionComplete : undefined}
                         />
                     )}
                 </div>
 
-                {session.completedAt === null && (
+                {session.completedAt === null && session.exercises.length === 0 && (
                     <form action={markSessionComplete}>
                         <input type="hidden" name="programId" value={programId} />
                         <input type="hidden" name="sessionId" value={session.id} />

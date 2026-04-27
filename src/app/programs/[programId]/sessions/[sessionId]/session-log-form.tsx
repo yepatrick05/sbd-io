@@ -27,6 +27,7 @@ interface SessionLogFormProps {
     programId: string;
     sessionId: string;
     saveLogsAction: (formData: FormData) => Promise<SaveLogsState>;
+    markSessionCompleteAction?: (formData: FormData) => void | Promise<void>;
 }
 
 export function SessionLogForm({
@@ -34,10 +35,12 @@ export function SessionLogForm({
     programId,
     sessionId,
     saveLogsAction,
+    markSessionCompleteAction,
 }: SessionLogFormProps) {
     const formRef = useRef<HTMLFormElement | null>(null);
     const [logStatus, setLogStatus] = useState<LogStatus>("clean");
     const [errorMessage, setErrorMessage] = useState("");
+    const [completionWarningMessage, setCompletionWarningMessage] = useState<string | null>(null);
     const hasUnsavedChanges = logStatus === "dirty";
 
     useEffect(() => {
@@ -122,6 +125,7 @@ export function SessionLogForm({
 
                 setLogStatus("saving");
                 setErrorMessage("");
+                setCompletionWarningMessage(null);
 
                 const formData = new FormData(formRef.current);
                 const saveResult = await saveLogsAction(formData);
@@ -138,6 +142,8 @@ export function SessionLogForm({
                 if (logStatus !== "saving") {
                     setLogStatus("dirty");
                 }
+
+                setCompletionWarningMessage(null);
             }}
             className="space-y-4 pb-24"
         >
@@ -232,15 +238,51 @@ export function SessionLogForm({
             })}
 
             <div className="sticky bottom-0 -mx-4 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur">
-                <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm text-gray-600">{statusMessage}</p>
-                    <button
-                        type="submit"
-                        disabled={logStatus === "saving"}
-                        className="rounded border border-black bg-black px-4 py-3 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {logStatus === "saving" ? "Saving..." : "Save Logs"}
-                    </button>
+                <div className="space-y-3">
+                    {completionWarningMessage !== null && (
+                        <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-gray-700">
+                            {completionWarningMessage}
+                        </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-gray-600">{statusMessage}</p>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            {markSessionCompleteAction !== undefined && (
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        if (!hasUnsavedChanges) {
+                                            setCompletionWarningMessage(null);
+                                        } else {
+                                            setCompletionWarningMessage(
+                                                "You have unsaved log changes. Save logs before completing this session.",
+                                            );
+                                            return;
+                                        }
+
+                                        const formData = new FormData();
+                                        formData.set("programId", programId);
+                                        formData.set("sessionId", sessionId);
+
+                                        await markSessionCompleteAction(formData);
+                                    }}
+                                    className="rounded border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700"
+                                >
+                                    Mark Complete
+                                </button>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={logStatus === "saving"}
+                                className="rounded border border-black bg-black px-4 py-3 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {logStatus === "saving" ? "Saving..." : "Save Logs"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>
