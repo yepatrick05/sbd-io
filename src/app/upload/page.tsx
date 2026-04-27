@@ -89,6 +89,7 @@ export default function UploadPage() {
     const reviewSummary = buildReviewSummary(programPreview, validationIssues);
     const reviewLevelIssues = getReviewLevelIssues(validationIssues);
     const unparsedSheetIssues = getUnparsedSheetIssues(validationIssues);
+    const groupedImportWarnings = getGroupedImportWarnings(validationIssues);
 
     async function handleConfirmImport() {
         if (hasBlockingErrors) {
@@ -184,7 +185,10 @@ export default function UploadPage() {
                             <SummaryCard label="Total Sessions" value={String(reviewSummary.totalSessions)} />
                             <SummaryCard label="Total Exercises" value={String(reviewSummary.totalExercises)} />
                             <SummaryCard label="Errors" value={String(totalErrorCount)} />
-                            <SummaryCard label="Warnings" value={String(totalWarningCount)} />
+                            <SummaryCard
+                                label="Warnings"
+                                value={`${groupedImportWarnings.length} types`}
+                            />
                             <SummaryCard label="Import Status" value={hasBlockingErrors ? "Blocked" : "Ready"} />
                         </div>
 
@@ -201,7 +205,8 @@ export default function UploadPage() {
                                     : "No blocking errors were found. Import can be confirmed."}
                             </p>
                             <p className="text-gray-700">
-                                Errors: {totalErrorCount} | Warnings: {totalWarningCount}
+                                Errors: {totalErrorCount} | Warning types: {groupedImportWarnings.length} | Warning
+                                instances: {totalWarningCount}
                             </p>
                         </div>
 
@@ -239,6 +244,53 @@ export default function UploadPage() {
                                         <p className="text-gray-700">{issue.message}</p>
                                     </div>
                                 ))}
+                            </div>
+                        )}
+
+                        {groupedImportWarnings.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Warning summary</p>
+
+                                <div className="space-y-2">
+                                    {groupedImportWarnings.map((warningSummary, warningIndex) => (
+                                        <div
+                                            key={warningIndex}
+                                            className="rounded border border-yellow-300 bg-yellow-50 p-3 text-sm"
+                                        >
+                                            <p className="font-medium">{warningSummary.message}</p>
+                                            <p className="text-gray-700">
+                                                {warningSummary.count} occurrence
+                                                {warningSummary.count === 1 ? "" : "s"}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <details className="rounded border border-gray-200 bg-white p-3 text-sm">
+                                    <summary className="cursor-pointer font-medium text-gray-700">
+                                        Show warning details
+                                    </summary>
+
+                                    <div className="mt-3 space-y-2">
+                                        {groupedImportWarnings.map((warningSummary, warningIndex) => (
+                                            <div key={warningIndex} className="rounded border border-gray-200 p-3">
+                                                <p className="font-medium">{warningSummary.message}</p>
+
+                                                <div className="mt-2 space-y-1 text-gray-600">
+                                                    {warningSummary.issues.map((issue, issueIndex) => (
+                                                        <p key={issueIndex}>
+                                                            Sheet: {formatTextValue(issue.sheetName)} | Week:{" "}
+                                                            {formatNumberValue(issue.weekNumber)} | Session:{" "}
+                                                            {formatNumberValue(issue.sessionOrder)} | Exercise:{" "}
+                                                            {formatTextValue(issue.exerciseName)} | Source row:{" "}
+                                                            {formatNumberValue(issue.sourceRowNumber)}
+                                                        </p>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </details>
                             </div>
                         )}
 
@@ -335,6 +387,11 @@ export default function UploadPage() {
                                                                 validationIssues,
                                                                 session,
                                                             );
+                                                            const sessionErrors = sessionIssues.filter((issue) => {
+                                                                return issue.severity === "error";
+                                                            });
+                                                            const groupedSessionWarnings =
+                                                                getGroupedWarningSummaries(sessionIssues);
 
                                                             return (
                                                                 <div
@@ -396,22 +453,17 @@ export default function UploadPage() {
                                                                                 </p>
                                                                             </div>
 
-                                                                            {sessionIssues.length > 0 && (
+                                                                            {sessionErrors.length > 0 && (
                                                                                 <div className="space-y-2">
                                                                                     <p className="font-medium text-sm">
-                                                                                        Validation for this session
+                                                                                        Errors for this session
                                                                                     </p>
 
-                                                                                    {sessionIssues.map(
+                                                                                    {sessionErrors.map(
                                                                                         (issue, issueIndex) => (
                                                                                             <div
                                                                                                 key={issueIndex}
-                                                                                                className={
-                                                                                                    issue.severity ===
-                                                                                                    "error"
-                                                                                                        ? "rounded border border-red-300 bg-red-50 p-3 text-sm"
-                                                                                                        : "rounded border border-yellow-300 bg-yellow-50 p-3 text-sm"
-                                                                                                }
+                                                                                                className="rounded border border-red-300 bg-red-50 p-3 text-sm"
                                                                                             >
                                                                                                 <p className="font-medium">
                                                                                                     {formatSeverity(
@@ -432,6 +484,62 @@ export default function UploadPage() {
                                                                                             </div>
                                                                                         ),
                                                                                     )}
+                                                                                </div>
+                                                                            )}
+
+                                                                            {groupedSessionWarnings.length > 0 && (
+                                                                                <div className="space-y-2">
+                                                                                    <p className="font-medium text-sm">
+                                                                                        Warning summary for this
+                                                                                        session
+                                                                                    </p>
+
+                                                                                    {groupedSessionWarnings.map(
+                                                                                        (warningSummary, warningIndex) => (
+                                                                                            <div
+                                                                                                key={warningIndex}
+                                                                                                className="rounded border border-yellow-300 bg-yellow-50 p-3 text-sm"
+                                                                                            >
+                                                                                                <p className="font-medium">
+                                                                                                    {warningSummary.message}
+                                                                                                </p>
+                                                                                                <p className="text-gray-600">
+                                                                                                    {warningSummary.count}{" "}
+                                                                                                    occurrence
+                                                                                                    {warningSummary.count ===
+                                                                                                    1
+                                                                                                        ? ""
+                                                                                                        : "s"}
+                                                                                                </p>
+                                                                                            </div>
+                                                                                        ),
+                                                                                    )}
+
+                                                                                    <details className="rounded border border-gray-200 bg-white p-3 text-sm">
+                                                                                        <summary className="cursor-pointer font-medium text-gray-700">
+                                                                                            Show warning details
+                                                                                        </summary>
+
+                                                                                        <div className="mt-3 space-y-2 text-gray-600">
+                                                                                            {groupedSessionWarnings.flatMap(
+                                                                                                (warningSummary) => {
+                                                                                                    return warningSummary.issues;
+                                                                                                },
+                                                                                            ).map((issue, issueIndex) => (
+                                                                                                <p key={issueIndex}>
+                                                                                                    {issue.message} |
+                                                                                                    Exercise:{" "}
+                                                                                                    {formatTextValue(
+                                                                                                        issue.exerciseName,
+                                                                                                    )}{" "}
+                                                                                                    | Source row:{" "}
+                                                                                                    {formatNumberValue(
+                                                                                                        issue.sourceRowNumber,
+                                                                                                    )}
+                                                                                                </p>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    </details>
                                                                                 </div>
                                                                             )}
 
@@ -911,6 +1019,48 @@ function getUnparsedSheetIssues(validationIssues: ValidationIssue[]): Validation
     return unparsedSheetIssues;
 }
 
+function getGroupedImportWarnings(validationIssues: ValidationIssue[]): GroupedWarningSummary[] {
+    const importWarnings = validationIssues.filter((issue) => {
+        const isDetailedImportWarning =
+            issue.severity === "warning" &&
+            issue.sheetName !== null &&
+            (issue.weekNumber !== null ||
+                issue.sessionOrder !== null ||
+                issue.exerciseName !== null ||
+                issue.sourceRowNumber !== null);
+
+        return isDetailedImportWarning;
+    });
+
+    return getGroupedWarningSummaries(importWarnings);
+}
+
+function getGroupedWarningSummaries(validationIssues: ValidationIssue[]): GroupedWarningSummary[] {
+    const warningGroups = new Map<string, GroupedWarningSummary>();
+
+    for (const issue of validationIssues) {
+        if (issue.severity !== "warning") {
+            continue;
+        }
+
+        const existingGroup = warningGroups.get(issue.message);
+
+        if (existingGroup === undefined) {
+            warningGroups.set(issue.message, {
+                message: issue.message,
+                count: 1,
+                issues: [issue],
+            });
+            continue;
+        }
+
+        existingGroup.count += 1;
+        existingGroup.issues.push(issue);
+    }
+
+    return Array.from(warningGroups.values());
+}
+
 function countIssuesForWeek(
     validationIssues: ValidationIssue[],
     weekNumber: number | null,
@@ -1003,4 +1153,10 @@ function formatSeverity(severity: "error" | "warning"): string {
     }
 
     return "Warning";
+}
+
+interface GroupedWarningSummary {
+    message: string;
+    count: number;
+    issues: ValidationIssue[];
 }

@@ -179,13 +179,13 @@ describe("workbook parser with sample-program2.xlsx", () => {
         const vagueSheetSessions = workbookPreview.sessionPreviews.filter((sessionPreview) => {
             return sessionPreview.sheetName === "block 3 - rando bodybuilding st";
         });
-        const programBlockNames = workbookPreview.programPreview?.blocks.map((block) => block.blockName) ?? [];
+        const programSheetNames = workbookPreview.programPreview?.blocks.map((block) => block.sheetName) ?? [];
 
         expect(vagueSheetHeaderCandidates).toHaveLength(0);
         expect(vagueSheetTableRegions).toHaveLength(0);
         expect(vagueSheetExerciseRows).toHaveLength(0);
         expect(vagueSheetSessions).toHaveLength(0);
-        expect(programBlockNames).not.toContain("block 3 - rando bodybuilding st");
+        expect(programSheetNames).not.toContain("block 3 - rando bodybuilding st");
     });
 
     it("adds a warning for the vague sheet instead of silently ignoring it", () => {
