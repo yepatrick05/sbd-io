@@ -42,23 +42,31 @@ export default async function ProgramsPage() {
         orderBy: {
             createdAt: "desc",
         },
-        include: {
+        select: {
+            id: true,
+            name: true,
+            createdAt: true,
             blocks: {
                 orderBy: {
                     blockOrder: "asc",
                 },
-                include: {
+                select: {
+                    name: true,
                     weeks: {
                         orderBy: {
                             weekNumber: "asc",
                         },
-                        include: {
+                        select: {
                             sessions: {
                                 orderBy: {
                                     sessionOrder: "asc",
                                 },
-                                include: {
-                                    exercises: true,
+                                select: {
+                                    _count: {
+                                        select: {
+                                            exercises: true,
+                                        },
+                                    },
                                 },
                             },
                         },
@@ -150,7 +158,9 @@ function countWeeks(
     blocks: {
         weeks: {
             sessions: {
-                exercises: unknown[];
+                _count: {
+                    exercises: number;
+                };
             }[];
         }[];
     }[],
@@ -168,7 +178,9 @@ function countSessions(
     blocks: {
         weeks: {
             sessions: {
-                exercises: unknown[];
+                _count: {
+                    exercises: number;
+                };
             }[];
         }[];
     }[],
@@ -188,7 +200,9 @@ function countExercises(
     blocks: {
         weeks: {
             sessions: {
-                exercises: unknown[];
+                _count: {
+                    exercises: number;
+                };
             }[];
         }[];
     }[],
@@ -198,7 +212,7 @@ function countExercises(
     for (const block of blocks) {
         for (const week of block.weeks) {
             for (const session of week.sessions) {
-                exerciseCount += session.exercises.length;
+                exerciseCount += session._count.exercises;
             }
         }
     }

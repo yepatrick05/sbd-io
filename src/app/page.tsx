@@ -6,9 +6,6 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
     const currentProgram = await readCurrentProgram();
-    const latestBlock = currentProgram?.blocks[0] ?? null;
-    const totalSessionCount = currentProgram === null ? 0 : countSessions(currentProgram.blocks);
-    const completedSessionCount = currentProgram === null ? 0 : countCompletedSessions(currentProgram.blocks);
 
     return (
         <main className="space-y-6 p-6">
@@ -42,7 +39,7 @@ export default async function Home() {
                         <p className="text-sm text-gray-600">Current Program</p>
                         <h2 className="text-xl font-semibold">{currentProgram.name}</h2>
                         <p className="text-sm text-gray-600">
-                            Latest block: {latestBlock === null ? "Not found" : latestBlock.name}
+                            Latest block: {currentProgram.latestBlockName}
                         </p>
                     </div>
 
@@ -50,7 +47,8 @@ export default async function Home() {
                         <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
                             <p className="text-gray-600">Progress</p>
                             <p className="font-medium">
-                                {completedSessionCount} / {totalSessionCount} sessions completed
+                                {currentProgram.completedSessionCount} / {currentProgram.totalSessionCount} sessions
+                                completed
                             </p>
                         </div>
 
@@ -90,20 +88,27 @@ async function readCurrentProgram() {
         orderBy: {
             lastAccessedAt: "desc",
         },
-        include: {
+        select: {
+            id: true,
+            name: true,
+            createdAt: true,
             blocks: {
                 orderBy: {
                     blockOrder: "desc",
                 },
-                include: {
+                select: {
+                    name: true,
                     weeks: {
                         orderBy: {
                             weekNumber: "asc",
                         },
-                        include: {
+                        select: {
                             sessions: {
                                 orderBy: {
                                     sessionOrder: "asc",
+                                },
+                                select: {
+                                    completedAt: true,
                                 },
                             },
                         },
@@ -114,27 +119,34 @@ async function readCurrentProgram() {
     });
 
     if (currentProgram !== null) {
-        return currentProgram;
+        return buildCurrentProgramSummary(currentProgram);
     }
 
-    return prisma.program.findFirst({
+    const latestProgram = await prisma.program.findFirst({
         orderBy: {
             createdAt: "desc",
         },
-        include: {
+        select: {
+            id: true,
+            name: true,
+            createdAt: true,
             blocks: {
                 orderBy: {
                     blockOrder: "desc",
                 },
-                include: {
+                select: {
+                    name: true,
                     weeks: {
                         orderBy: {
                             weekNumber: "asc",
                         },
-                        include: {
+                        select: {
                             sessions: {
                                 orderBy: {
                                     sessionOrder: "asc",
+                                },
+                                select: {
+                                    completedAt: true,
                                 },
                             },
                         },
@@ -143,6 +155,39 @@ async function readCurrentProgram() {
             },
         },
     });
+
+    if (latestProgram === null) {
+        return null;
+    }
+
+    return buildCurrentProgramSummary(latestProgram);
+}
+
+function buildCurrentProgramSummary(currentProgram: {
+    id: string;
+    name: string;
+    createdAt: Date;
+    blocks: {
+        name: string;
+        weeks: {
+            sessions: {
+                completedAt: Date | null;
+            }[];
+        }[];
+    }[];
+}) {
+    const latestBlock = currentProgram.blocks[0] ?? null;
+    const totalSessionCount = countSessions(currentProgram.blocks);
+    const completedSessionCount = countCompletedSessions(currentProgram.blocks);
+
+    return {
+        id: currentProgram.id,
+        name: currentProgram.name,
+        createdAt: currentProgram.createdAt,
+        latestBlockName: latestBlock === null ? "Not found" : latestBlock.name,
+        totalSessionCount,
+        completedSessionCount,
+    };
 }
 
 function countSessions(

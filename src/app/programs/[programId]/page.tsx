@@ -28,25 +28,46 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
         data: {
             lastAccessedAt: new Date(),
         },
-        include: {
+        select: {
+            id: true,
+            name: true,
+            createdAt: true,
             blocks: {
                 orderBy: {
                     blockOrder: "asc",
                 },
-                include: {
+                select: {
+                    id: true,
+                    name: true,
+                    sheetName: true,
                     weeks: {
                         orderBy: {
                             weekNumber: "asc",
                         },
-                        include: {
+                        select: {
+                            id: true,
+                            weekNumber: true,
                             sessions: {
                                 orderBy: {
                                     sessionOrder: "asc",
                                 },
-                                include: {
+                                select: {
+                                    id: true,
+                                    sessionOrder: true,
+                                    label: true,
+                                    intendedWeekday: true,
+                                    completedAt: true,
                                     exercises: {
                                         orderBy: {
                                             rowOrder: "asc",
+                                        },
+                                        select: {
+                                            id: true,
+                                            rawExerciseName: true,
+                                            sets: true,
+                                            reps: true,
+                                            prescribedLoad: true,
+                                            prescribedRpe: true,
                                         },
                                     },
                                 },
