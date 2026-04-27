@@ -139,7 +139,7 @@ export function SessionLogForm({
                     setLogStatus("dirty");
                 }
             }}
-            className="space-y-4"
+            className="space-y-4 pb-24"
         >
             <input type="hidden" name="programId" value={programId} />
             <input type="hidden" name="sessionId" value={sessionId} />
@@ -148,63 +148,72 @@ export function SessionLogForm({
 
             {exercises.map((exercise) => {
                 const currentLog = exercise.logs[0] ?? null;
+                const setsAndReps = formatSetsAndReps(exercise.sets, exercise.reps);
 
                 return (
                     <div
                         key={exercise.id}
-                        className="space-y-3 rounded border border-gray-200 bg-gray-50 p-4 text-sm"
+                        className="space-y-3 rounded border border-gray-200 bg-white p-4 text-sm"
                     >
-                        <div className="space-y-1">
-                            <p className="font-medium">{exercise.rawExerciseName}</p>
-                        </div>
+                        <div className="space-y-2">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                <p className="text-base font-semibold text-gray-900">
+                                    {exercise.rawExerciseName}
+                                </p>
 
-                        <div className="grid gap-2 sm:grid-cols-2">
-                            <div>
-                                <p className="text-gray-600">Sets</p>
-                                <p>{formatNullableText(exercise.sets)}</p>
+                                <span className="rounded border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700">
+                                    {setsAndReps}
+                                </span>
                             </div>
 
-                            <div>
-                                <p className="text-gray-600">Reps</p>
-                                <p>{formatNullableText(exercise.reps)}</p>
-                            </div>
+                            <div className="grid grid-cols-2 gap-2 rounded border border-gray-200 bg-gray-50 p-3">
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-gray-500">
+                                        Prescribed Load
+                                    </p>
+                                    <p className="font-medium text-gray-900">
+                                        {formatNullableText(exercise.prescribedLoad)}
+                                    </p>
+                                </div>
 
-                            <div>
-                                <p className="text-gray-600">Prescribed Load</p>
-                                <p>{formatNullableText(exercise.prescribedLoad)}</p>
-                            </div>
-
-                            <div>
-                                <p className="text-gray-600">Prescribed RPE</p>
-                                <p>{formatNullableText(exercise.prescribedRpe)}</p>
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-gray-500">
+                                        Prescribed RPE
+                                    </p>
+                                    <p className="font-medium text-gray-900">
+                                        {formatNullableText(exercise.prescribedRpe)}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
                         {exercise.coachNotes !== null && (
-                            <div className="rounded border border-gray-200 bg-white p-3 text-sm text-gray-700">
-                                <p className="text-gray-600">Coach Notes</p>
+                            <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+                                <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">
+                                    Coach Notes
+                                </p>
                                 <p>{exercise.coachNotes}</p>
                             </div>
                         )}
 
                         <div className="grid gap-3 sm:grid-cols-2">
                             <label className="space-y-1">
-                                <span className="text-gray-600">Selected Load</span>
+                                <span className="text-gray-700">Selected Load</span>
                                 <input
                                     type="text"
                                     name={`selectedLoad-${exercise.id}`}
                                     defaultValue={currentLog?.selectedLoad ?? ""}
-                                    className="w-full rounded border border-gray-300 bg-white px-3 py-2"
+                                    className="w-full rounded border border-gray-300 bg-white px-3 py-3 text-base"
                                 />
                             </label>
 
                             <label className="space-y-1">
-                                <span className="text-gray-600">Actual RPE</span>
+                                <span className="text-gray-700">Actual RPE</span>
                                 <input
                                     type="text"
                                     name={`actualRpe-${exercise.id}`}
                                     defaultValue={currentLog?.actualRpe ?? ""}
-                                    className="w-full rounded border border-gray-300 bg-white px-3 py-2"
+                                    className="w-full rounded border border-gray-300 bg-white px-3 py-3 text-base"
                                 />
                             </label>
                         </div>
@@ -214,21 +223,26 @@ export function SessionLogForm({
                             <textarea
                                 name={`athleteNotes-${exercise.id}`}
                                 defaultValue={currentLog?.athleteNotes ?? ""}
-                                rows={3}
-                                className="w-full rounded border border-gray-300 bg-white px-3 py-2"
+                                rows={2}
+                                className="w-full rounded border border-gray-300 bg-white px-3 py-3 text-base"
                             />
                         </label>
                     </div>
                 );
             })}
 
-            <button
-                type="submit"
-                disabled={logStatus === "saving"}
-                className="rounded border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-                {logStatus === "saving" ? "Saving..." : "Save Logs"}
-            </button>
+            <div className="sticky bottom-0 -mx-4 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur">
+                <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-gray-600">{statusMessage}</p>
+                    <button
+                        type="submit"
+                        disabled={logStatus === "saving"}
+                        className="rounded border border-black bg-black px-4 py-3 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {logStatus === "saving" ? "Saving..." : "Save Logs"}
+                    </button>
+                </div>
+            </div>
         </form>
     );
 }
@@ -239,4 +253,11 @@ function formatNullableText(value: string | null): string {
     }
 
     return value;
+}
+
+function formatSetsAndReps(sets: string | null, reps: string | null): string {
+    const formattedSets = formatNullableText(sets);
+    const formattedReps = formatNullableText(reps);
+
+    return `${formattedSets} x ${formattedReps}`;
 }
