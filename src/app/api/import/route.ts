@@ -33,108 +33,118 @@ export async function POST(request: Request) {
 
         const programPreview = workbookPreview.programPreview;
 
-        const savedProgram = await prisma.$transaction(async (transaction) => {
-            const importAccessedAt = new Date();
+        const savedProgram = await prisma.$transaction(
+            async (transaction) => {
+                const importAccessedAt = new Date();
 
-            const program = await transaction.program.create({
-                data: {
-                    name: programPreview.programName,
-                    lastAccessedAt: importAccessedAt,
-                },
-            });
-
-            for (let blockIndex = 0; blockIndex < programPreview.blocks.length; blockIndex++) {
-                const blockPreview = programPreview.blocks[blockIndex];
-
-                const block = await transaction.block.create({
+                const program = await transaction.program.create({
                     data: {
-                        programId: program.id,
-                        name: blockPreview.sheetName,
-                        blockOrder: blockIndex + 1,
-                        sheetName: blockPreview.sheetName,
+                        name: programPreview.programName,
+                        lastAccessedAt: importAccessedAt,
                     },
                 });
 
-                for (const weekPreview of blockPreview.weeks) {
-                    const week = await transaction.week.create({
+                for (let blockIndex = 0; blockIndex < programPreview.blocks.length; blockIndex++) {
+                    const blockPreview = programPreview.blocks[blockIndex];
+
+                    const block = await transaction.block.create({
                         data: {
-                            blockId: block.id,
-                            weekNumber: weekPreview.weekNumber as number,
+                            programId: program.id,
+                            name: blockPreview.sheetName,
+                            blockOrder: blockIndex + 1,
+                            sheetName: blockPreview.sheetName,
                         },
                     });
 
-                    for (const sessionPreview of weekPreview.sessions) {
-                        const session = await transaction.session.create({
+                    for (const weekPreview of blockPreview.weeks) {
+                        const week = await transaction.week.create({
                             data: {
-                                weekId: week.id,
-                                sessionOrder: sessionPreview.sessionOrder as number,
-                                label: sessionPreview.sessionLabel,
-                                intendedWeekday: sessionPreview.intendedWeekday,
-                                sheetName: sessionPreview.sheetName,
-                                headerRowNumber: sessionPreview.headerRowNumber,
-                                startRowNumber: sessionPreview.startRowNumber,
-                                endRowNumber: sessionPreview.endRowNumber,
-                                startColumnIndex: sessionPreview.startColumnIndex,
-                                endColumnIndex: sessionPreview.endColumnIndex,
+                                blockId: block.id,
+                                weekNumber: weekPreview.weekNumber as number,
                             },
                         });
 
-                        await transaction.importSource.create({
-                            data: {
-                                programId: program.id,
-                                sourceType: "xlsx_upload",
-                                originalFileName: workbookPreview.originalFileName,
-                                sheetName: sessionPreview.sheetName,
-                                headerRowNumber: sessionPreview.headerRowNumber,
-                                startRowNumber: sessionPreview.startRowNumber,
-                                endRowNumber: sessionPreview.endRowNumber,
-                                startColumnIndex: sessionPreview.startColumnIndex,
-                                endColumnIndex: sessionPreview.endColumnIndex,
-                            },
-                        });
-
-                        for (let exerciseIndex = 0; exerciseIndex < sessionPreview.exercises.length; exerciseIndex++) {
-                            const exercisePreview = sessionPreview.exercises[exerciseIndex];
-
-                            if (exercisePreview.exercise === null) {
-                                continue;
-                            }
-
-                            const exercisePrescription = await transaction.exercisePrescription.create({
+                        for (const sessionPreview of weekPreview.sessions) {
+                            const session = await transaction.session.create({
                                 data: {
-                                    sessionId: session.id,
-                                    rowOrder: exerciseIndex + 1,
-                                    rawExerciseName: exercisePreview.exercise,
-                                    movementPattern: null,
-                                    variationName: null,
-                                    priorityTag: null,
-                                    sets: exercisePreview.sets,
-                                    reps: exercisePreview.reps,
-                                    prescribedLoad: exercisePreview.prescribedLoad,
-                                    prescribedRpe: exercisePreview.prescribedRpe,
-                                    coachNotes: exercisePreview.coachNotes,
-                                    sourceRowNumber: exercisePreview.sourceRowNumber,
+                                    weekId: week.id,
+                                    sessionOrder: sessionPreview.sessionOrder as number,
+                                    label: sessionPreview.sessionLabel,
+                                    intendedWeekday: sessionPreview.intendedWeekday,
+                                    sheetName: sessionPreview.sheetName,
+                                    headerRowNumber: sessionPreview.headerRowNumber,
+                                    startRowNumber: sessionPreview.startRowNumber,
+                                    endRowNumber: sessionPreview.endRowNumber,
+                                    startColumnIndex: sessionPreview.startColumnIndex,
+                                    endColumnIndex: sessionPreview.endColumnIndex,
                                 },
                             });
 
-                            if (hasExerciseLogData(exercisePreview)) {
-                                await transaction.exerciseLog.create({
+                            await transaction.importSource.create({
+                                data: {
+                                    programId: program.id,
+                                    sourceType: "xlsx_upload",
+                                    originalFileName: workbookPreview.originalFileName,
+                                    sheetName: sessionPreview.sheetName,
+                                    headerRowNumber: sessionPreview.headerRowNumber,
+                                    startRowNumber: sessionPreview.startRowNumber,
+                                    endRowNumber: sessionPreview.endRowNumber,
+                                    startColumnIndex: sessionPreview.startColumnIndex,
+                                    endColumnIndex: sessionPreview.endColumnIndex,
+                                },
+                            });
+
+                            for (
+                                let exerciseIndex = 0;
+                                exerciseIndex < sessionPreview.exercises.length;
+                                exerciseIndex++
+                            ) {
+                                const exercisePreview = sessionPreview.exercises[exerciseIndex];
+
+                                if (exercisePreview.exercise === null) {
+                                    continue;
+                                }
+
+                                const exercisePrescription = await transaction.exercisePrescription.create({
                                     data: {
-                                        exercisePrescriptionId: exercisePrescription.id,
-                                        selectedLoad: exercisePreview.selectedLoad,
-                                        actualReps: null,
-                                        actualRpe: exercisePreview.actualRpe,
-                                        athleteNotes: exercisePreview.athleteNotes,
+                                        sessionId: session.id,
+                                        rowOrder: exerciseIndex + 1,
+                                        rawExerciseName: exercisePreview.exercise,
+                                        movementPattern: null,
+                                        variationName: null,
+                                        priorityTag: null,
+                                        sets: exercisePreview.sets,
+                                        reps: exercisePreview.reps,
+                                        prescribedLoad: exercisePreview.prescribedLoad,
+                                        prescribedRpe: exercisePreview.prescribedRpe,
+                                        coachNotes: exercisePreview.coachNotes,
+                                        sourceRowNumber: exercisePreview.sourceRowNumber,
                                     },
                                 });
+
+                                if (hasExerciseLogData(exercisePreview)) {
+                                    await transaction.exerciseLog.create({
+                                        data: {
+                                            exercisePrescriptionId: exercisePrescription.id,
+                                            selectedLoad: exercisePreview.selectedLoad,
+                                            actualReps: null,
+                                            actualRpe: exercisePreview.actualRpe,
+                                            athleteNotes: exercisePreview.athleteNotes,
+                                        },
+                                    });
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            return program;
-        });
+                return program;
+            },
+            {
+                maxWait: 10000,
+                timeout: 30000,
+            },
+        );
 
         return NextResponse.json({ programId: savedProgram.id });
     } catch (error) {
