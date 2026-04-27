@@ -46,6 +46,14 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
         notFound();
     }
 
+    const orderedSessions = getOrderedSessions(program.blocks);
+    const currentSessionId = getCurrentSessionId(orderedSessions);
+    const completedSessionCount = orderedSessions.filter((session) => {
+        return session.completedAt !== null;
+    }).length;
+    const totalSessionCount = orderedSessions.length;
+    const completionPercentage = getCompletionPercentage(completedSessionCount, totalSessionCount);
+
     return (
         <main className="space-y-6 p-6">
             <div className="space-y-2">
@@ -57,6 +65,20 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
                 <Link href={`/programs/${program.id}/next`} className="text-sm text-gray-600 underline">
                     Continue Training
                 </Link>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded border border-gray-200 bg-white p-4 text-sm">
+                    <p className="text-gray-600">Session Progress</p>
+                    <p className="font-medium">
+                        {completedSessionCount} / {totalSessionCount} completed
+                    </p>
+                </div>
+
+                <div className="rounded border border-gray-200 bg-white p-4 text-sm">
+                    <p className="text-gray-600">Completion</p>
+                    <p className="font-medium">{completionPercentage}% complete</p>
+                </div>
             </div>
 
             {program.blocks.length === 0 && (
@@ -85,20 +107,23 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
 
                             <div className="space-y-2">
                                 {week.sessions.map((session) => (
-                                    <div
-                                        key={session.id}
-                                        className="rounded border border-gray-200 bg-white p-4 text-sm"
-                                    >
+                                    <div key={session.id} className="rounded border border-gray-200 bg-white p-4 text-sm">
                                         <div className="space-y-1">
-                                            <p className="font-medium">Session {session.sessionOrder}</p>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <p className="font-medium">Session {session.sessionOrder}</p>
+                                                <span
+                                                    className={getSessionStatusBadgeClassName(
+                                                        getSessionStatusLabel(session.completedAt, currentSessionId, session.id),
+                                                    )}
+                                                >
+                                                    {getSessionStatusLabel(session.completedAt, currentSessionId, session.id)}
+                                                </span>
+                                            </div>
                                             <p className="text-gray-600">Label: {session.label ?? "Not found"}</p>
                                             <p className="text-gray-600">
                                                 Intended weekday: {session.intendedWeekday ?? "Not found"}
                                             </p>
                                             <p className="text-gray-600">Exercise count: {session.exercises.length}</p>
-                                            <p className="text-gray-600">
-                                                Status: {session.completedAt === null ? "Incomplete" : "Completed"}
-                                            </p>
                                             <Link
                                                 href={`/programs/${program.id}/sessions/${session.id}`}
                                                 className="inline-block text-gray-600 underline"
@@ -174,4 +199,81 @@ function formatNullableText(value: string | null): string {
     }
 
     return value;
+}
+
+function getOrderedSessions(
+    blocks: {
+        weeks: {
+            sessions: {
+                id: string;
+                completedAt: Date | null;
+            }[];
+        }[];
+    }[],
+): { id: string; completedAt: Date | null }[] {
+    const orderedSessions: { id: string; completedAt: Date | null }[] = [];
+
+    for (const block of blocks) {
+        for (const week of block.weeks) {
+            for (const session of week.sessions) {
+                orderedSessions.push({
+                    id: session.id,
+                    completedAt: session.completedAt,
+                });
+            }
+        }
+    }
+
+    return orderedSessions;
+}
+
+function getCurrentSessionId(
+    orderedSessions: {
+        id: string;
+        completedAt: Date | null;
+    }[],
+): string | null {
+    for (const session of orderedSessions) {
+        if (session.completedAt === null) {
+            return session.id;
+        }
+    }
+
+    return null;
+}
+
+function getCompletionPercentage(completedSessionCount: number, totalSessionCount: number): number {
+    if (totalSessionCount === 0) {
+        return 0;
+    }
+
+    return Math.round((completedSessionCount / totalSessionCount) * 100);
+}
+
+function getSessionStatusLabel(
+    completedAt: Date | null,
+    currentSessionId: string | null,
+    sessionId: string,
+): "Completed" | "Current" | "Upcoming" {
+    if (completedAt !== null) {
+        return "Completed";
+    }
+
+    if (currentSessionId === sessionId) {
+        return "Current";
+    }
+
+    return "Upcoming";
+}
+
+function getSessionStatusBadgeClassName(status: "Completed" | "Current" | "Upcoming"): string {
+    if (status === "Completed") {
+        return "rounded border border-green-300 bg-green-50 px-2 py-0.5 text-xs text-green-700";
+    }
+
+    if (status === "Current") {
+        return "rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700";
+    }
+
+    return "rounded border border-gray-300 bg-gray-50 px-2 py-0.5 text-xs text-gray-700";
 }
