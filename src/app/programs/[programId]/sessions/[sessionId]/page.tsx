@@ -54,6 +54,74 @@ export default async function SessionDetailPage({
         notFound();
     }
 
+    async function saveLogs(formData: FormData) {
+        "use server";
+
+        const currentSessionId = formData.get("sessionId");
+        const currentProgramId = formData.get("programId");
+
+        if (typeof currentSessionId !== "string" || currentSessionId === "") {
+            return;
+        }
+
+        if (typeof currentProgramId !== "string" || currentProgramId === "") {
+            return;
+        }
+
+        const exercisePrescriptions = await prisma.exercisePrescription.findMany({
+            where: {
+                sessionId: currentSessionId,
+            },
+            include: {
+                logs: {
+                    orderBy: {
+                        createdAt: "asc",
+                    },
+                },
+            },
+        });
+
+        await prisma.$transaction(async (transaction) => {
+            for (const exercisePrescription of exercisePrescriptions) {
+                const selectedLoad = getOptionalFormValue(formData.get(`selectedLoad-${exercisePrescription.id}`));
+                const actualRpe = getOptionalFormValue(formData.get(`actualRpe-${exercisePrescription.id}`));
+                const athleteNotes = getOptionalFormValue(formData.get(`athleteNotes-${exercisePrescription.id}`));
+                const existingLog = exercisePrescription.logs[0] ?? null;
+
+                if (existingLog === null) {
+                    if (selectedLoad === null && actualRpe === null && athleteNotes === null) {
+                        continue;
+                    }
+
+                    await transaction.exerciseLog.create({
+                        data: {
+                            exercisePrescriptionId: exercisePrescription.id,
+                            selectedLoad,
+                            actualReps: null,
+                            actualRpe,
+                            athleteNotes,
+                        },
+                    });
+
+                    continue;
+                }
+
+                await transaction.exerciseLog.update({
+                    where: {
+                        id: existingLog.id,
+                    },
+                    data: {
+                        selectedLoad,
+                        actualRpe,
+                        athleteNotes,
+                    },
+                });
+            }
+        });
+
+        redirect(`/programs/${currentProgramId}/sessions/${currentSessionId}?saved=logs`);
+    }
+
     async function markSessionComplete(formData: FormData) {
         "use server";
 
@@ -166,7 +234,7 @@ export default async function SessionDetailPage({
                 </div>
 
                 <div className="space-y-3">
-                    <h2 className="text-lg font-semibold">Exercises</h2>
+                    <h2 className="text-lg font-semibold">Exercise Logs</h2>
 
                     {session.exercises.length === 0 && (
                         <div className="rounded border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
@@ -174,70 +242,95 @@ export default async function SessionDetailPage({
                         </div>
                     )}
 
-                    {session.exercises.map((exercise) => {
-                        const currentLog = exercise.logs[0] ?? null;
+                    {session.exercises.length > 0 && (
+                        <form action={saveLogs} className="space-y-4">
+                            <input type="hidden" name="programId" value={programId} />
+                            <input type="hidden" name="sessionId" value={session.id} />
 
-                        return (
-                            <div
-                                key={exercise.id}
-                                className="space-y-3 rounded border border-gray-200 bg-gray-50 p-4 text-sm"
+                            {session.exercises.map((exercise) => {
+                                const currentLog = exercise.logs[0] ?? null;
+
+                                return (
+                                    <div
+                                        key={exercise.id}
+                                        className="space-y-3 rounded border border-gray-200 bg-gray-50 p-4 text-sm"
+                                    >
+                                        <div className="space-y-1">
+                                            <p className="font-medium">{exercise.rawExerciseName}</p>
+                                        </div>
+
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <div>
+                                                <p className="text-gray-600">Sets</p>
+                                                <p>{formatNullableText(exercise.sets)}</p>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-gray-600">Reps</p>
+                                                <p>{formatNullableText(exercise.reps)}</p>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-gray-600">Prescribed Load</p>
+                                                <p>{formatNullableText(exercise.prescribedLoad)}</p>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-gray-600">Prescribed RPE</p>
+                                                <p>{formatNullableText(exercise.prescribedRpe)}</p>
+                                            </div>
+                                        </div>
+
+                                        {exercise.coachNotes !== null && (
+                                            <div className="rounded border border-gray-200 bg-white p-3 text-sm text-gray-700">
+                                                <p className="text-gray-600">Coach Notes</p>
+                                                <p>{exercise.coachNotes}</p>
+                                            </div>
+                                        )}
+
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <label className="space-y-1">
+                                                <span className="text-gray-600">Selected Load</span>
+                                                <input
+                                                    type="text"
+                                                    name={`selectedLoad-${exercise.id}`}
+                                                    defaultValue={currentLog?.selectedLoad ?? ""}
+                                                    className="w-full rounded border border-gray-300 bg-white px-3 py-2"
+                                                />
+                                            </label>
+
+                                            <label className="space-y-1">
+                                                <span className="text-gray-600">Actual RPE</span>
+                                                <input
+                                                    type="text"
+                                                    name={`actualRpe-${exercise.id}`}
+                                                    defaultValue={currentLog?.actualRpe ?? ""}
+                                                    className="w-full rounded border border-gray-300 bg-white px-3 py-2"
+                                                />
+                                            </label>
+                                        </div>
+
+                                        <label className="space-y-1">
+                                            <span className="text-gray-600">Athlete Notes</span>
+                                            <textarea
+                                                name={`athleteNotes-${exercise.id}`}
+                                                defaultValue={currentLog?.athleteNotes ?? ""}
+                                                rows={3}
+                                                className="w-full rounded border border-gray-300 bg-white px-3 py-2"
+                                            />
+                                        </label>
+                                    </div>
+                                );
+                            })}
+
+                            <button
+                                type="submit"
+                                className="rounded border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700"
                             >
-                                <div className="space-y-1">
-                                    <p className="font-medium">{exercise.rawExerciseName}</p>
-                                </div>
-
-                                <div className="grid gap-2 sm:grid-cols-2">
-                                    <div>
-                                        <p className="text-gray-600">Sets</p>
-                                        <p>{formatNullableText(exercise.sets)}</p>
-                                    </div>
-
-                                    <div>
-                                        <p className="text-gray-600">Reps</p>
-                                        <p>{formatNullableText(exercise.reps)}</p>
-                                    </div>
-
-                                    <div>
-                                        <p className="text-gray-600">Prescribed Load</p>
-                                        <p>{formatNullableText(exercise.prescribedLoad)}</p>
-                                    </div>
-
-                                    <div>
-                                        <p className="text-gray-600">Prescribed RPE</p>
-                                        <p>{formatNullableText(exercise.prescribedRpe)}</p>
-                                    </div>
-                                </div>
-
-                                {exercise.coachNotes !== null && (
-                                    <div className="rounded border border-gray-200 bg-white p-3 text-sm text-gray-700">
-                                        <p className="text-gray-600">Coach Notes</p>
-                                        <p>{exercise.coachNotes}</p>
-                                    </div>
-                                )}
-
-                                {(currentLog?.selectedLoad !== null && currentLog?.selectedLoad !== undefined) ||
-                                (currentLog?.actualRpe !== null && currentLog?.actualRpe !== undefined) ||
-                                (currentLog?.athleteNotes !== null && currentLog?.athleteNotes !== undefined) ? (
-                                    <div className="space-y-2 rounded border border-gray-200 bg-white p-3 text-sm text-gray-700">
-                                        <p className="font-medium">Saved Log</p>
-
-                                        {currentLog?.selectedLoad !== null && currentLog?.selectedLoad !== undefined && (
-                                            <p>Selected load: {currentLog.selectedLoad}</p>
-                                        )}
-
-                                        {currentLog?.actualRpe !== null && currentLog?.actualRpe !== undefined && (
-                                            <p>Actual RPE: {currentLog.actualRpe}</p>
-                                        )}
-
-                                        {currentLog?.athleteNotes !== null &&
-                                            currentLog?.athleteNotes !== undefined && (
-                                                <p>Athlete notes: {currentLog.athleteNotes}</p>
-                                            )}
-                                    </div>
-                                ) : null}
-                            </div>
-                        );
-                    })}
+                                Save Logs
+                            </button>
+                        </form>
+                    )}
                 </div>
 
                 {session.completedAt === null && (
@@ -278,7 +371,25 @@ function formatNullableText(value: string | null): string {
     return value;
 }
 
+function getOptionalFormValue(value: FormDataEntryValue | null): string | null {
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    const trimmedValue = value.trim();
+
+    if (trimmedValue === "") {
+        return null;
+    }
+
+    return trimmedValue;
+}
+
 function getStatusMessage(savedValue: string | undefined): string | null {
+    if (savedValue === "logs") {
+        return "Exercise logs were saved.";
+    }
+
     if (savedValue === "completed") {
         return "Session marked complete.";
     }
