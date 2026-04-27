@@ -109,7 +109,6 @@ export interface NormalisedWeekPreview {
 
 export interface NormalisedBlockPreview {
     sheetName: string;
-    blockName: string;
     weeks: NormalisedWeekPreview[];
 }
 
@@ -121,6 +120,7 @@ export interface ProgramPreview {
 export interface ValidationIssue {
     severity: "error" | "warning";
     message: string;
+    sheetName: string | null;
     weekNumber: number | null;
     sessionOrder: number | null;
     exerciseName: string | null;

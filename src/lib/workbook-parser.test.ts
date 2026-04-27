@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import ExcelJS from "exceljs";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { parseWorkbook } from "./workbook-parser";
@@ -83,6 +84,7 @@ describe("workbook parser", () => {
 
         expect(deadliftDropSet).toMatchObject({
             prescribedLoad: "-12.5%",
+            sheetName: "Block 14 - blowing ts up",
             prescribedRpe: null,
             selectedLoad: "145",
             actualRpe: "5",
@@ -101,7 +103,7 @@ describe("workbook parser with sample-program2.xlsx", () => {
         expect(workbookPreview.programPreview).not.toBeNull();
 
         const structuredBlock = workbookPreview.programPreview?.blocks.find((block) => {
-            return block.blockName === "block 2 - ramping it up";
+            return block.sheetName === "block 2 - ramping it up";
         });
 
         const weekNumbers = structuredBlock?.weeks.map((week) => week.weekNumber);
@@ -113,7 +115,7 @@ describe("workbook parser with sample-program2.xlsx", () => {
 
     it("detects known session labels in the structured block", () => {
         const structuredBlock = workbookPreview.programPreview?.blocks.find((block) => {
-            return block.blockName === "block 2 - ramping it up";
+            return block.sheetName === "block 2 - ramping it up";
         });
 
         const sessionLabels =
@@ -184,5 +186,63 @@ describe("workbook parser with sample-program2.xlsx", () => {
         expect(vagueSheetExerciseRows).toHaveLength(0);
         expect(vagueSheetSessions).toHaveLength(0);
         expect(programBlockNames).not.toContain("block 3 - rando bodybuilding st");
+    });
+
+    it("adds a warning for the vague sheet instead of silently ignoring it", () => {
+        const vagueSheetWarning = workbookPreview.validationIssues.find((issue) => {
+            return (
+                issue.sheetName === "block 3 - rando bodybuilding st" &&
+                issue.message === "No recognisable workout table headers were found." &&
+                issue.severity === "warning"
+            );
+        });
+
+        expect(vagueSheetWarning).toMatchObject({
+            sheetName: "block 3 - rando bodybuilding st",
+            severity: "warning",
+            message: "No recognisable workout table headers were found.",
+        });
+    });
+});
+
+describe("workbook parser with no recognisable workout tables", () => {
+    it("adds a blocking error when the workbook has no valid workout tables anywhere", async () => {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet("notes");
+
+        sheet.getCell("A1").value = "Just some notes";
+        sheet.getCell("A2").value = "Bench 80 x 5";
+        sheet.getCell("A3").value = "Squat 120 x 5";
+
+        const workbookBuffer = Buffer.from(await workbook.xlsx.writeBuffer());
+        const workbookPreview = await parseWorkbook("unstructured.xlsx", workbookBuffer);
+
+        const workbookLevelError = workbookPreview.validationIssues.find((issue) => {
+            return (
+                issue.sheetName === null &&
+                issue.severity === "error" &&
+                issue.message === "No recognisable workout tables were detected anywhere in this workbook."
+            );
+        });
+        const sheetLevelWarning = workbookPreview.validationIssues.find((issue) => {
+            return (
+                issue.sheetName === "notes" &&
+                issue.severity === "warning" &&
+                issue.message === "No recognisable workout table headers were found."
+            );
+        });
+
+        expect(workbookPreview.headerRowCandidates).toHaveLength(0);
+        expect(workbookPreview.tableRegions).toHaveLength(0);
+        expect(workbookLevelError).toMatchObject({
+            sheetName: null,
+            severity: "error",
+            message: "No recognisable workout tables were detected anywhere in this workbook.",
+        });
+        expect(sheetLevelWarning).toMatchObject({
+            sheetName: "notes",
+            severity: "warning",
+            message: "No recognisable workout table headers were found.",
+        });
     });
 });

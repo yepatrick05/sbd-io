@@ -64,27 +64,31 @@ export default function UploadPage() {
     let programPreview: ProgramPreview | null = null;
     let validationIssues: ValidationIssue[] = [];
 
-    if (workbookPreview !== null && selectedSheet !== null) {
-        visibleHeaderRowCandidates = workbookPreview.headerRowCandidates.filter((candidate) => {
-            return candidate.sheetName === selectedSheet.name;
-        });
-
-        visibleTableRegions = workbookPreview.tableRegions.filter((tableRegion) => {
-            return tableRegion.sheetName === selectedSheet.name;
-        });
-
-        visibleTableColumnMappings = workbookPreview.tableColumnMappings.filter((tableColumnMapping) => {
-            return tableColumnMapping.sheetName === selectedSheet.name;
-        });
-
+    if (workbookPreview !== null) {
         programPreview = workbookPreview.programPreview;
         validationIssues = workbookPreview.validationIssues;
+
+        if (selectedSheet !== null) {
+            visibleHeaderRowCandidates = workbookPreview.headerRowCandidates.filter((candidate) => {
+                return candidate.sheetName === selectedSheet.name;
+            });
+
+            visibleTableRegions = workbookPreview.tableRegions.filter((tableRegion) => {
+                return tableRegion.sheetName === selectedSheet.name;
+            });
+
+            visibleTableColumnMappings = workbookPreview.tableColumnMappings.filter((tableColumnMapping) => {
+                return tableColumnMapping.sheetName === selectedSheet.name;
+            });
+        }
     }
 
     const totalErrorCount = countIssuesBySeverity(validationIssues, "error");
     const totalWarningCount = countIssuesBySeverity(validationIssues, "warning");
     const hasBlockingErrors = totalErrorCount > 0;
     const reviewSummary = buildReviewSummary(programPreview, validationIssues);
+    const reviewLevelIssues = getReviewLevelIssues(validationIssues);
+    const unparsedSheetIssues = getUnparsedSheetIssues(validationIssues);
 
     async function handleConfirmImport() {
         if (hasBlockingErrors) {
@@ -175,7 +179,7 @@ export default function UploadPage() {
 
                         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                             <SummaryCard label="Program Name" value={reviewSummary.programName} />
-                            <SummaryCard label="Block Name" value={reviewSummary.blockName} />
+                            <SummaryCard label="Sheet Name" value={reviewSummary.sheetName} />
                             <SummaryCard label="Total Weeks" value={String(reviewSummary.totalWeeks)} />
                             <SummaryCard label="Total Sessions" value={String(reviewSummary.totalSessions)} />
                             <SummaryCard label="Total Exercises" value={String(reviewSummary.totalExercises)} />
@@ -200,6 +204,43 @@ export default function UploadPage() {
                                 Errors: {totalErrorCount} | Warnings: {totalWarningCount}
                             </p>
                         </div>
+
+                        {reviewLevelIssues.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Import review notes</p>
+
+                                {reviewLevelIssues.map((issue, issueIndex) => (
+                                    <div
+                                        key={issueIndex}
+                                        className={
+                                            issue.severity === "error"
+                                                ? "rounded border border-red-300 bg-red-50 p-3 text-sm"
+                                                : "rounded border border-yellow-300 bg-yellow-50 p-3 text-sm"
+                                        }
+                                    >
+                                        <p className="font-medium">
+                                            {formatSeverity(issue.severity)}: {issue.message}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {unparsedSheetIssues.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Sheets that were not parsed confidently</p>
+
+                                {unparsedSheetIssues.map((issue, issueIndex) => (
+                                    <div
+                                        key={issueIndex}
+                                        className="rounded border border-yellow-300 bg-yellow-50 p-3 text-sm"
+                                    >
+                                        <p className="font-medium">{issue.sheetName}</p>
+                                        <p className="text-gray-700">{issue.message}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <div className="flex flex-wrap items-center gap-3">
                             <button
@@ -238,8 +279,7 @@ export default function UploadPage() {
                                         className="space-y-4 rounded border border-gray-200 bg-white p-4"
                                     >
                                         <div className="space-y-1">
-                                            <p className="font-medium">Block: {block.blockName}</p>
-                                            <p className="text-sm text-gray-600">Sheet: {block.sheetName}</p>
+                                            <p className="font-medium">Sheet: {block.sheetName}</p>
                                         </div>
 
                                         {block.weeks.map((week, weekIndex) => {
@@ -768,13 +808,13 @@ function buildReviewSummary(programPreview: ProgramPreview | null, validationIss
     let totalSessions = 0;
     let totalExercises = 0;
     let programName = "Not found";
-    let blockName = "Not found";
+    let sheetName = "Not found";
 
     if (programPreview !== null) {
         programName = programPreview.programName;
 
         if (programPreview.blocks.length > 0) {
-            blockName = programPreview.blocks[0].blockName;
+            sheetName = programPreview.blocks[0].sheetName;
         }
 
         for (const block of programPreview.blocks) {
@@ -792,7 +832,7 @@ function buildReviewSummary(programPreview: ProgramPreview | null, validationIss
 
     return {
         programName,
-        blockName,
+        sheetName,
         totalWeeks,
         totalSessions,
         totalExercises,
@@ -831,6 +871,44 @@ function countIssuesBySeverity(validationIssues: ValidationIssue[], severity: "e
     }
 
     return issueCount;
+}
+
+function getReviewLevelIssues(validationIssues: ValidationIssue[]): ValidationIssue[] {
+    const reviewLevelIssues: ValidationIssue[] = [];
+
+    for (const issue of validationIssues) {
+        const isReviewLevelIssue =
+            issue.sheetName === null &&
+            issue.weekNumber === null &&
+            issue.sessionOrder === null &&
+            issue.exerciseName === null &&
+            issue.sourceRowNumber === null;
+
+        if (isReviewLevelIssue) {
+            reviewLevelIssues.push(issue);
+        }
+    }
+
+    return reviewLevelIssues;
+}
+
+function getUnparsedSheetIssues(validationIssues: ValidationIssue[]): ValidationIssue[] {
+    const unparsedSheetIssues: ValidationIssue[] = [];
+
+    for (const issue of validationIssues) {
+        const isUnparsedSheetIssue =
+            issue.sheetName !== null &&
+            issue.weekNumber === null &&
+            issue.sessionOrder === null &&
+            issue.exerciseName === null &&
+            issue.sourceRowNumber === null;
+
+        if (isUnparsedSheetIssue) {
+            unparsedSheetIssues.push(issue);
+        }
+    }
+
+    return unparsedSheetIssues;
 }
 
 function countIssuesForWeek(

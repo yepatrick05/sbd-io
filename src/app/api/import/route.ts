@@ -49,7 +49,7 @@ export async function POST(request: Request) {
                 const block = await transaction.block.create({
                     data: {
                         programId: program.id,
-                        name: blockPreview.blockName,
+                        name: blockPreview.sheetName,
                         blockOrder: blockIndex + 1,
                         sheetName: blockPreview.sheetName,
                     },
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
     } catch (error) {
         console.error("Failed to save imported program", error);
 
-        return NextResponse.json({ error: "Failed to save imported program." }, { status: 500 });
+        return NextResponse.json({ error: getImportErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -186,4 +186,12 @@ function hasExerciseLogData(exercisePreview: ExerciseRow): boolean {
     }
 
     return false;
+}
+
+function getImportErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message.trim() !== "") {
+        return `Failed to save imported program: ${error.message}`;
+    }
+
+    return "Failed to save imported program.";
 }

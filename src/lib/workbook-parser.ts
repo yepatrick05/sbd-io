@@ -76,7 +76,11 @@ export async function parseWorkbook(fileName: string, workbookData: Buffer): Pro
     preview.tableContexts = detectTableContexts(preview.sheets, preview.tableRegions);
     preview.sessionPreviews = buildSessionPreviews(preview.tableRegions, preview.tableContexts, preview.exerciseRows);
     preview.programPreview = buildProgramPreview(fileName, preview.sessionPreviews);
-    preview.validationIssues = validateProgramPreview(preview.programPreview);
+    preview.validationIssues = validateProgramPreview(
+        preview.sheets,
+        preview.headerRowCandidates,
+        preview.programPreview,
+    );
 
     return preview;
 }
@@ -640,7 +644,6 @@ function buildProgramPreview(fileName: string, sessionPreviews: SessionPreview[]
         if (block === undefined) {
             block = {
                 sheetName: sessionPreview.sheetName,
-                blockName: sessionPreview.sheetName,
                 weeks: [],
             };
 
@@ -706,13 +709,48 @@ function buildProgramPreview(fileName: string, sessionPreviews: SessionPreview[]
     };
 }
 
-function validateProgramPreview(programPreview: ProgramPreview | null): ValidationIssue[] {
+function validateProgramPreview(
+    sheets: SheetPreview[],
+    headerRowCandidates: HeaderRowCandidate[],
+    programPreview: ProgramPreview | null,
+): ValidationIssue[] {
     const validationIssues: ValidationIssue[] = [];
+
+    for (const sheet of sheets) {
+        const sheetHeaderRowCandidates = headerRowCandidates.filter((candidate) => {
+            return candidate.sheetName === sheet.name;
+        });
+
+        if (sheetHeaderRowCandidates.length === 0) {
+            validationIssues.push({
+                severity: "warning",
+                message: "No recognisable workout table headers were found.",
+                sheetName: sheet.name,
+                weekNumber: null,
+                sessionOrder: null,
+                exerciseName: null,
+                sourceRowNumber: null,
+            });
+        }
+    }
+
+    if (headerRowCandidates.length === 0) {
+        validationIssues.push({
+            severity: "error",
+            message: "No recognisable workout tables were detected anywhere in this workbook.",
+            sheetName: null,
+            weekNumber: null,
+            sessionOrder: null,
+            exerciseName: null,
+            sourceRowNumber: null,
+        });
+    }
 
     if (programPreview === null) {
         validationIssues.push({
             severity: "error",
             message: "Program preview could not be created.",
+            sheetName: null,
             weekNumber: null,
             sessionOrder: null,
             exerciseName: null,
@@ -732,6 +770,7 @@ function validateProgramPreview(programPreview: ProgramPreview | null): Validati
         validationIssues.push({
             severity: "error",
             message: "Program preview must contain at least one week.",
+            sheetName: null,
             weekNumber: null,
             sessionOrder: null,
             exerciseName: null,
@@ -745,6 +784,7 @@ function validateProgramPreview(programPreview: ProgramPreview | null): Validati
                 validationIssues.push({
                     severity: "error",
                     message: "Each week must contain at least one session.",
+                    sheetName: block.sheetName,
                     weekNumber: week.weekNumber,
                     sessionOrder: null,
                     exerciseName: null,
@@ -757,6 +797,7 @@ function validateProgramPreview(programPreview: ProgramPreview | null): Validati
                     validationIssues.push({
                         severity: "error",
                         message: "Each session must contain at least one exercise.",
+                        sheetName: block.sheetName,
                         weekNumber: week.weekNumber,
                         sessionOrder: session.sessionOrder,
                         exerciseName: null,
@@ -769,6 +810,7 @@ function validateProgramPreview(programPreview: ProgramPreview | null): Validati
                         validationIssues.push({
                             severity: "error",
                             message: "Each exercise must have an exercise name.",
+                            sheetName: block.sheetName,
                             weekNumber: week.weekNumber,
                             sessionOrder: session.sessionOrder,
                             exerciseName: null,
@@ -780,6 +822,7 @@ function validateProgramPreview(programPreview: ProgramPreview | null): Validati
                         validationIssues.push({
                             severity: "warning",
                             message: "Exercise is missing sets.",
+                            sheetName: block.sheetName,
                             weekNumber: week.weekNumber,
                             sessionOrder: session.sessionOrder,
                             exerciseName: exercise.exercise,
@@ -791,6 +834,7 @@ function validateProgramPreview(programPreview: ProgramPreview | null): Validati
                         validationIssues.push({
                             severity: "warning",
                             message: "Exercise is missing reps.",
+                            sheetName: block.sheetName,
                             weekNumber: week.weekNumber,
                             sessionOrder: session.sessionOrder,
                             exerciseName: exercise.exercise,
@@ -802,6 +846,7 @@ function validateProgramPreview(programPreview: ProgramPreview | null): Validati
                         validationIssues.push({
                             severity: "warning",
                             message: "Exercise is missing prescribed RPE or coach notes explaining the RPE-style work.",
+                            sheetName: block.sheetName,
                             weekNumber: week.weekNumber,
                             sessionOrder: session.sessionOrder,
                             exerciseName: exercise.exercise,
