@@ -10,6 +10,9 @@ export interface HeaderRowCandidate {
     rowNumber: number;
     confidence: number;
     matchedFields: string[];
+    startColumnIndex: number;
+    endColumnIndex: number;
+    headerStartColumnIndex: number;
 }
 
 export interface TableRegion {
@@ -17,12 +20,17 @@ export interface TableRegion {
     headerRowNumber: number;
     startRowNumber: number;
     endRowNumber: number;
+    startColumnIndex: number;
+    endColumnIndex: number;
+    headerStartColumnIndex: number;
     rowCount: number;
 }
 
 export interface TableColumnMapping {
     sheetName: string;
     headerRowNumber: number;
+    startColumnIndex: number;
+    headerStartColumnIndex: number;
     columns: {
         exercise: number | null;
         sets: number | null;
@@ -39,6 +47,8 @@ export interface TableColumnMapping {
 export interface ExerciseRow {
     sheetName: string;
     headerRowNumber: number;
+    startColumnIndex: number;
+    headerStartColumnIndex: number;
     sourceRowNumber: number;
     exercise: string | null;
     sets: string | null;
@@ -54,6 +64,8 @@ export interface ExerciseRow {
 export interface TableContext {
     sheetName: string;
     headerRowNumber: number;
+    startColumnIndex: number;
+    headerStartColumnIndex: number;
     weekNumber: number | null;
     sessionOrder: number | null;
     sessionLabel: string | null;
@@ -63,6 +75,8 @@ export interface TableContext {
 export interface SessionPreview {
     sheetName: string;
     headerRowNumber: number;
+    startColumnIndex: number;
+    headerStartColumnIndex: number;
     weekNumber: number | null;
     sessionOrder: number | null;
     sessionLabel: string | null;
@@ -73,6 +87,8 @@ export interface SessionPreview {
 export interface NormalisedSessionPreview {
     sheetName: string;
     headerRowNumber: number;
+    startColumnIndex: number;
+    headerStartColumnIndex: number;
     weekNumber: number | null;
     sessionOrder: number | null;
     sessionLabel: string | null;

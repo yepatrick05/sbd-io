@@ -164,6 +164,12 @@ export default function UploadPage() {
                                                     Row {candidate.rowNumber} with {candidate.confidence}% confidence
                                                 </p>
                                                 <p className="text-gray-600">
+                                                    Region columns: {candidate.startColumnIndex} to {candidate.endColumnIndex}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Header columns: {candidate.headerStartColumnIndex} to {candidate.endColumnIndex}
+                                                </p>
+                                                <p className="text-gray-600">
                                                     Matched fields: {candidate.matchedFields.join(", ")}
                                                 </p>
                                             </div>
@@ -193,6 +199,14 @@ export default function UploadPage() {
                                                     Table rows: {tableRegion.startRowNumber} to{" "}
                                                     {tableRegion.endRowNumber}
                                                 </p>
+                                                <p className="text-gray-600">
+                                                    Table columns: {tableRegion.startColumnIndex} to{" "}
+                                                    {tableRegion.endColumnIndex}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Header columns: {tableRegion.headerStartColumnIndex} to{" "}
+                                                    {tableRegion.endColumnIndex}
+                                                </p>
                                                 <p className="text-gray-600">Row count: {tableRegion.rowCount}</p>
                                             </div>
                                         ))}
@@ -218,6 +232,12 @@ export default function UploadPage() {
                                             >
                                                 <p className="font-medium">
                                                     Header row {tableColumnMapping.headerRowNumber}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Region start column: {tableColumnMapping.startColumnIndex}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Header start column: {tableColumnMapping.headerStartColumnIndex}
                                                 </p>
                                                 <p className="text-gray-600">
                                                     Exercise column:{" "}
@@ -277,6 +297,12 @@ export default function UploadPage() {
                                             >
                                                 <p className="font-medium">
                                                     Header row {sessionPreview.headerRowNumber}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Region start column: {sessionPreview.startColumnIndex}
+                                                </p>
+                                                <p className="text-gray-600">
+                                                    Header start column: {sessionPreview.headerStartColumnIndex}
                                                 </p>
                                                 <p className="text-gray-600">
                                                     Week number: {formatNumberValue(sessionPreview.weekNumber)}
@@ -399,6 +425,12 @@ export default function UploadPage() {
                                                                         </p>
                                                                         <p className="text-gray-600">
                                                                             Header row: {session.headerRowNumber}
+                                                                        </p>
+                                                                        <p className="text-gray-600">
+                                                                            Region start column: {session.startColumnIndex}
+                                                                        </p>
+                                                                        <p className="text-gray-600">
+                                                                            Header start column: {session.headerStartColumnIndex}
                                                                         </p>
                                                                         <p className="text-gray-600">
                                                                             Sheet: {session.sheetName}
