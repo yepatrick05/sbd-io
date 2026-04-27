@@ -840,6 +840,7 @@ function getHeaderFieldName(cellValue: PreviewCell): string | null {
     }
 
     if (
+        normalisedCellValue === "% load" ||
         normalisedCellValue.includes("projected load") ||
         normalisedCellValue.includes("prescribed load") ||
         normalisedCellValue.includes("target load") ||
