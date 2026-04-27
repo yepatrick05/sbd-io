@@ -34,9 +34,12 @@ export async function POST(request: Request) {
         const programPreview = workbookPreview.programPreview;
 
         const savedProgram = await prisma.$transaction(async (transaction) => {
+            const importAccessedAt = new Date();
+
             const program = await transaction.program.create({
                 data: {
                     name: programPreview.programName,
+                    lastAccessedAt: importAccessedAt,
                 },
             });
 

@@ -8,12 +8,13 @@ datasource db {
 }
 
 model Program {
-  id            String         @id @default(cuid())
-  name          String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  blocks        Block[]
-  importSources ImportSource[]
+  id             String         @id @default(cuid())
+  name           String
+  lastAccessedAt DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  blocks         Block[]
+  importSources  ImportSource[]
 }
 
 model Block {

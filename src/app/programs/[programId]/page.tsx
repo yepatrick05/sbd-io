@@ -8,9 +8,26 @@ export const dynamic = "force-dynamic";
 export default async function ProgramDetailPage({ params }: { params: Promise<{ programId: string }> }) {
     const { programId } = await params;
 
-    const program = await prisma.program.findUnique({
+    const existingProgram = await prisma.program.findUnique({
         where: {
             id: programId,
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (existingProgram === null) {
+        notFound();
+    }
+
+    // Opening a saved program makes it the current program for the dashboard.
+    const program = await prisma.program.update({
+        where: {
+            id: programId,
+        },
+        data: {
+            lastAccessedAt: new Date(),
         },
         include: {
             blocks: {
@@ -41,10 +58,6 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
             },
         },
     });
-
-    if (program === null) {
-        notFound();
-    }
 
     const orderedSessions = getOrderedSessions(program.blocks);
     const currentSessionId = getCurrentSessionId(orderedSessions);

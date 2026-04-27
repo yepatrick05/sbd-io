@@ -5,14 +5,9 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function NextSessionPage({
-    params,
-}: {
-    params: Promise<{ programId: string }>;
-}) {
+export default async function NextSessionPage({ params }: { params: Promise<{ programId: string }> }) {
     const { programId } = await params;
 
-    // Read the saved program and its sessions so we can find the next uncompleted session.
     const program = await prisma.program.findUnique({
         where: {
             id: programId,

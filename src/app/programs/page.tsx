@@ -19,7 +19,6 @@ export default async function ProgramsPage() {
         }
 
         try {
-            // Deleting the program also deletes its related records through cascade relations.
             await prisma.program.delete({
                 where: {
                     id: programId,
@@ -39,7 +38,6 @@ export default async function ProgramsPage() {
         };
     }
 
-    // Read saved programs from the database so users can browse imported programs.
     const programs = await prisma.program.findMany({
         orderBy: {
             createdAt: "desc",
@@ -70,6 +68,9 @@ export default async function ProgramsPage() {
         },
     });
 
+    const currentProgram = await readCurrentProgramSummary();
+    const currentProgramId = currentProgram?.id ?? null;
+
     return (
         <main className="space-y-6 p-6">
             <div className="space-y-2">
@@ -77,9 +78,7 @@ export default async function ProgramsPage() {
                     Back to Dashboard
                 </Link>
                 <h1 className="text-2xl font-semibold">Saved Programs</h1>
-                <p className="text-sm text-gray-600">
-                    Browse programs that have already been confirmed and saved.
-                </p>
+                <p className="text-sm text-gray-600">Browse programs that have already been confirmed and saved.</p>
             </div>
 
             {programs.length === 0 && (
@@ -95,23 +94,34 @@ export default async function ProgramsPage() {
                         const weekCount = countWeeks(program.blocks);
                         const sessionCount = countSessions(program.blocks);
                         const exerciseCount = countExercises(program.blocks);
+                        const isCurrentProgram = program.id === currentProgramId;
 
                         return (
                             <div
                                 key={program.id}
-                                className="rounded border border-gray-200 bg-white p-4 text-sm"
+                                className={
+                                    isCurrentProgram
+                                        ? "rounded border border-black bg-white p-4 text-sm"
+                                        : "rounded border border-gray-200 bg-white p-4 text-sm"
+                                }
                             >
                                 <div className="space-y-3">
-                                    <p className="text-lg font-medium">{program.name}</p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-lg font-medium">{program.name}</p>
+
+                                        {isCurrentProgram && (
+                                            <span className="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                                                Current Program
+                                            </span>
+                                        )}
+                                    </div>
                                     <p className="text-gray-600">
                                         Block: {firstBlock === null ? "Not found" : firstBlock.name}
                                     </p>
                                     <p className="text-gray-600">Weeks: {weekCount}</p>
                                     <p className="text-gray-600">Sessions: {sessionCount}</p>
                                     <p className="text-gray-600">Exercises: {exerciseCount}</p>
-                                    <p className="text-gray-600">
-                                        Created: {formatDate(program.createdAt)}
-                                    </p>
+                                    <p className="text-gray-600">Created: {formatDate(program.createdAt)}</p>
 
                                     <div className="flex flex-wrap items-start gap-3">
                                         <Link
@@ -202,4 +212,33 @@ function formatDate(value: Date): string {
         month: "short",
         day: "numeric",
     }).format(value);
+}
+
+async function readCurrentProgramSummary(): Promise<{ id: string } | null> {
+    const currentProgram = await prisma.program.findFirst({
+        where: {
+            lastAccessedAt: {
+                not: null,
+            },
+        },
+        orderBy: {
+            lastAccessedAt: "desc",
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (currentProgram !== null) {
+        return currentProgram;
+    }
+
+    return prisma.program.findFirst({
+        orderBy: {
+            createdAt: "desc",
+        },
+        select: {
+            id: true,
+        },
+    });
 }
