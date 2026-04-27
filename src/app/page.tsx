@@ -81,7 +81,6 @@ export default async function Home() {
 }
 
 async function readCurrentProgram() {
-    // Prefer the most recently accessed program. Fall back to the newest imported program.
     const currentProgram = await prisma.program.findFirst({
         where: {
             lastAccessedAt: {

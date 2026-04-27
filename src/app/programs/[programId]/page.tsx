@@ -21,7 +21,6 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
         notFound();
     }
 
-    // Opening a saved program makes it the current program for the dashboard.
     const program = await prisma.program.update({
         where: {
             id: programId,
@@ -120,16 +119,27 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
 
                             <div className="space-y-2">
                                 {week.sessions.map((session) => (
-                                    <div key={session.id} className="rounded border border-gray-200 bg-white p-4 text-sm">
+                                    <div
+                                        key={session.id}
+                                        className="rounded border border-gray-200 bg-white p-4 text-sm"
+                                    >
                                         <div className="space-y-1">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <p className="font-medium">Session {session.sessionOrder}</p>
                                                 <span
                                                     className={getSessionStatusBadgeClassName(
-                                                        getSessionStatusLabel(session.completedAt, currentSessionId, session.id),
+                                                        getSessionStatusLabel(
+                                                            session.completedAt,
+                                                            currentSessionId,
+                                                            session.id,
+                                                        ),
                                                     )}
                                                 >
-                                                    {getSessionStatusLabel(session.completedAt, currentSessionId, session.id)}
+                                                    {getSessionStatusLabel(
+                                                        session.completedAt,
+                                                        currentSessionId,
+                                                        session.id,
+                                                    )}
                                                 </span>
                                             </div>
                                             <p className="text-gray-600">Label: {session.label ?? "Not found"}</p>

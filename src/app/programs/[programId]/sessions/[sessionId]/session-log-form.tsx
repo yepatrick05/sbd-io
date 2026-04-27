@@ -74,9 +74,7 @@ export function SessionLogForm({
                 return;
             }
 
-            const shouldLeavePage = window.confirm(
-                "You have unsaved log changes. Leave this page without saving?",
-            );
+            const shouldLeavePage = window.confirm("You have unsaved log changes. Leave this page without saving?");
 
             if (shouldLeavePage) {
                 return;
@@ -157,15 +155,10 @@ export function SessionLogForm({
                 const setsAndReps = formatSetsAndReps(exercise.sets, exercise.reps);
 
                 return (
-                    <div
-                        key={exercise.id}
-                        className="space-y-3 rounded border border-gray-200 bg-white p-4 text-sm"
-                    >
+                    <div key={exercise.id} className="space-y-3 rounded border border-gray-200 bg-white p-4 text-sm">
                         <div className="space-y-2">
                             <div className="flex flex-wrap items-start justify-between gap-2">
-                                <p className="text-base font-semibold text-gray-900">
-                                    {exercise.rawExerciseName}
-                                </p>
+                                <p className="text-base font-semibold text-gray-900">{exercise.rawExerciseName}</p>
 
                                 <span className="rounded border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700">
                                     {setsAndReps}
@@ -174,18 +167,14 @@ export function SessionLogForm({
 
                             <div className="grid grid-cols-2 gap-2 rounded border border-gray-200 bg-gray-50 p-3">
                                 <div>
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">
-                                        Prescribed Load
-                                    </p>
+                                    <p className="text-xs uppercase tracking-wide text-gray-500">Prescribed Load</p>
                                     <p className="font-medium text-gray-900">
                                         {formatNullableText(exercise.prescribedLoad)}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">
-                                        Prescribed RPE
-                                    </p>
+                                    <p className="text-xs uppercase tracking-wide text-gray-500">Prescribed RPE</p>
                                     <p className="font-medium text-gray-900">
                                         {formatNullableText(exercise.prescribedRpe)}
                                     </p>
@@ -195,9 +184,7 @@ export function SessionLogForm({
 
                         {exercise.coachNotes !== null && (
                             <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-                                <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">
-                                    Coach Notes
-                                </p>
+                                <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">Coach Notes</p>
                                 <p>{exercise.coachNotes}</p>
                             </div>
                         )}

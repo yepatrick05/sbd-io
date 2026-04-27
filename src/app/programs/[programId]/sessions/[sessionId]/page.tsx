@@ -16,7 +16,6 @@ export default async function SessionDetailPage({
     const { programId, sessionId } = await params;
     const resolvedSearchParams = await searchParams;
 
-    // Read the specific saved session so users can review it directly.
     const session = await prisma.session.findFirst({
         where: {
             id: sessionId,
@@ -55,7 +54,6 @@ export default async function SessionDetailPage({
         notFound();
     }
 
-    // Read the ordered session list so users can browse backward and forward.
     const orderedSessions = await prisma.session.findMany({
         where: {
             week: {
@@ -235,10 +233,7 @@ export default async function SessionDetailPage({
     }
 
     const statusMessage = getStatusMessage(resolvedSearchParams.saved);
-    const warningMessage = getMissingActualRpeWarningMessage(
-        resolvedSearchParams.warning,
-        resolvedSearchParams.count,
-    );
+    const warningMessage = getMissingActualRpeWarningMessage(resolvedSearchParams.warning, resolvedSearchParams.count);
 
     return (
         <main className="space-y-6 p-6">
@@ -247,11 +242,7 @@ export default async function SessionDetailPage({
                     <Link href={`/programs/${programId}`} className="underline" data-warn-unsaved="true">
                         Back to program
                     </Link>
-                    <Link
-                        href={`/programs/${programId}/next`}
-                        className="underline"
-                        data-warn-unsaved="true"
-                    >
+                    <Link href={`/programs/${programId}/next`} className="underline" data-warn-unsaved="true">
                         Continue Training
                     </Link>
                     {sessionNavigation.previousSessionId !== null ? (
@@ -279,42 +270,6 @@ export default async function SessionDetailPage({
                 </div>
                 <h1 className="text-2xl font-semibold">{session.week.block.program.name}</h1>
                 <p className="text-sm text-gray-600">Session details</p>
-                <p className="text-sm text-gray-600">
-                    {session.completedAt === null
-                        ? "Use Continue Training to return to the current session in sequence."
-                        : "Use Continue Training to jump to the first incomplete session in sequence."}
-                </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3 text-sm text-gray-600">
-                <Link href={`/programs/${programId}`} className="underline" data-warn-unsaved="true">
-                    Back to Program
-                </Link>
-                <Link href={`/programs/${programId}/next`} className="underline" data-warn-unsaved="true">
-                    Continue Training
-                </Link>
-                {sessionNavigation.previousSessionId !== null ? (
-                    <Link
-                        href={`/programs/${programId}/sessions/${sessionNavigation.previousSessionId}`}
-                        className="underline"
-                        data-warn-unsaved="true"
-                    >
-                        Previous Session
-                    </Link>
-                ) : (
-                    <span className="text-gray-400">Previous Session</span>
-                )}
-                {sessionNavigation.nextSessionId !== null ? (
-                    <Link
-                        href={`/programs/${programId}/sessions/${sessionNavigation.nextSessionId}`}
-                        className="underline"
-                        data-warn-unsaved="true"
-                    >
-                        Next Session
-                    </Link>
-                ) : (
-                    <span className="text-gray-400">Next Session</span>
-                )}
             </div>
 
             {statusMessage !== null && (
@@ -370,9 +325,7 @@ export default async function SessionDetailPage({
 
                     <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
                         <p className="text-gray-600">Completion Status</p>
-                        <p className="font-medium">
-                            {session.completedAt === null ? "Incomplete" : "Completed"}
-                        </p>
+                        <p className="font-medium">{session.completedAt === null ? "Incomplete" : "Completed"}</p>
                     </div>
 
                     <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
@@ -426,37 +379,6 @@ export default async function SessionDetailPage({
                         </button>
                     </form>
                 )}
-
-                <div className="flex flex-wrap gap-3 border-t border-gray-200 pt-4 text-sm text-gray-600">
-                    <Link href={`/programs/${programId}`} className="underline" data-warn-unsaved="true">
-                        Back to Program
-                    </Link>
-                    <Link href={`/programs/${programId}/next`} className="underline" data-warn-unsaved="true">
-                        Continue Training
-                    </Link>
-                    {sessionNavigation.previousSessionId !== null ? (
-                        <Link
-                            href={`/programs/${programId}/sessions/${sessionNavigation.previousSessionId}`}
-                            className="underline"
-                            data-warn-unsaved="true"
-                        >
-                            Previous Session
-                        </Link>
-                    ) : (
-                        <span className="text-gray-400">Previous Session</span>
-                    )}
-                    {sessionNavigation.nextSessionId !== null ? (
-                        <Link
-                            href={`/programs/${programId}/sessions/${sessionNavigation.nextSessionId}`}
-                            className="underline"
-                            data-warn-unsaved="true"
-                        >
-                            Next Session
-                        </Link>
-                    ) : (
-                        <span className="text-gray-400">Next Session</span>
-                    )}
-                </div>
             </section>
         </main>
     );
