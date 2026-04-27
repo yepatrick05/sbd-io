@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import type {
@@ -17,6 +18,7 @@ export default function UploadPage() {
     const [workbookPreview, setWorkbookPreview] = useState<WorkbookPreview | null>(null);
     const [selectedSheetName, setSelectedSheetName] = useState<string | null>(null);
     const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
+    const [savedProgramId, setSavedProgramId] = useState<string | null>(null);
     const [expandedSessionKeys, setExpandedSessionKeys] = useState<string[]>([]);
     const [showDebugDetails, setShowDebugDetails] = useState(false);
     const [isSavingImport, setIsSavingImport] = useState(false);
@@ -35,6 +37,7 @@ export default function UploadPage() {
 
         setWorkbookPreview(preview);
         setConfirmMessage(null);
+        setSavedProgramId(null);
         setExpandedSessionKeys([]);
         setShowDebugDetails(false);
         setIsSavingImport(false);
@@ -96,6 +99,7 @@ export default function UploadPage() {
 
         setIsSavingImport(true);
         setConfirmMessage(null);
+        setSavedProgramId(null);
 
         try {
             const response = await fetch("/api/import", {
@@ -116,6 +120,7 @@ export default function UploadPage() {
             }
 
             setConfirmMessage(`Import saved successfully. Program id: ${responseBody.programId}`);
+            setSavedProgramId(responseBody.programId ?? null);
         } catch {
             setConfirmMessage("Failed to save import.");
         } finally {
@@ -211,6 +216,14 @@ export default function UploadPage() {
                             </button>
 
                             {confirmMessage !== null && <p className="text-sm text-gray-600">{confirmMessage}</p>}
+                            {savedProgramId !== null && (
+                                <Link
+                                    href={`/programs/${savedProgramId}`}
+                                    className="text-sm text-gray-700 underline"
+                                >
+                                    View saved program
+                                </Link>
+                            )}
                         </div>
 
                         {programPreview === null && (
