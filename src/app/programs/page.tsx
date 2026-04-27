@@ -39,6 +39,9 @@ export default async function ProgramsPage() {
     return (
         <main className="space-y-6 p-6">
             <div className="space-y-2">
+                <Link href="/" className="text-sm text-gray-600 underline">
+                    Back to Dashboard
+                </Link>
                 <h1 className="text-2xl font-semibold">Saved Programs</h1>
                 <p className="text-sm text-gray-600">
                     Browse programs that have already been confirmed and saved.
