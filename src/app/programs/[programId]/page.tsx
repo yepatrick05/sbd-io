@@ -55,7 +55,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
                 <h1 className="text-2xl font-semibold">{program.name}</h1>
                 <p className="text-sm text-gray-600">Created: {formatDate(program.createdAt)}</p>
                 <Link href={`/programs/${program.id}/next`} className="text-sm text-gray-600 underline">
-                    View next session
+                    Continue Training
                 </Link>
             </div>
 

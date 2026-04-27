@@ -54,6 +54,39 @@ export default async function SessionDetailPage({
         notFound();
     }
 
+    // Read the ordered session list so users can browse backward and forward.
+    const orderedSessions = await prisma.session.findMany({
+        where: {
+            week: {
+                block: {
+                    programId,
+                },
+            },
+        },
+        orderBy: [
+            {
+                week: {
+                    block: {
+                        blockOrder: "asc",
+                    },
+                },
+            },
+            {
+                week: {
+                    weekNumber: "asc",
+                },
+            },
+            {
+                sessionOrder: "asc",
+            },
+        ],
+        select: {
+            id: true,
+        },
+    });
+
+    const sessionNavigation = getSessionNavigation(orderedSessions, session.id);
+
     async function saveLogs(formData: FormData) {
         "use server";
 
@@ -193,11 +226,70 @@ export default async function SessionDetailPage({
     return (
         <main className="space-y-6 p-6">
             <div className="space-y-2">
-                <Link href={`/programs/${programId}`} className="text-sm text-gray-600 underline">
-                    Back to program
-                </Link>
+                <div className="flex flex-wrap gap-3 text-sm text-gray-600">
+                    <Link href={`/programs/${programId}`} className="underline">
+                        Back to program
+                    </Link>
+                    <Link href={`/programs/${programId}/next`} className="underline">
+                        Continue Training
+                    </Link>
+                    {sessionNavigation.previousSessionId !== null ? (
+                        <Link
+                            href={`/programs/${programId}/sessions/${sessionNavigation.previousSessionId}`}
+                            className="underline"
+                        >
+                            Previous Session
+                        </Link>
+                    ) : (
+                        <span className="text-gray-400">Previous Session</span>
+                    )}
+                    {sessionNavigation.nextSessionId !== null ? (
+                        <Link
+                            href={`/programs/${programId}/sessions/${sessionNavigation.nextSessionId}`}
+                            className="underline"
+                        >
+                            Next Session
+                        </Link>
+                    ) : (
+                        <span className="text-gray-400">Next Session</span>
+                    )}
+                </div>
                 <h1 className="text-2xl font-semibold">{session.week.block.program.name}</h1>
                 <p className="text-sm text-gray-600">Session details</p>
+                <p className="text-sm text-gray-600">
+                    {session.completedAt === null
+                        ? "Use Continue Training to return to the current session in sequence."
+                        : "Use Continue Training to jump to the first incomplete session in sequence."}
+                </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3 text-sm text-gray-600">
+                <Link href={`/programs/${programId}`} className="underline">
+                    Back to Program
+                </Link>
+                <Link href={`/programs/${programId}/next`} className="underline">
+                    Continue Training
+                </Link>
+                {sessionNavigation.previousSessionId !== null ? (
+                    <Link
+                        href={`/programs/${programId}/sessions/${sessionNavigation.previousSessionId}`}
+                        className="underline"
+                    >
+                        Previous Session
+                    </Link>
+                ) : (
+                    <span className="text-gray-400">Previous Session</span>
+                )}
+                {sessionNavigation.nextSessionId !== null ? (
+                    <Link
+                        href={`/programs/${programId}/sessions/${sessionNavigation.nextSessionId}`}
+                        className="underline"
+                    >
+                        Next Session
+                    </Link>
+                ) : (
+                    <span className="text-gray-400">Next Session</span>
+                )}
             </div>
 
             {statusMessage !== null && (
@@ -389,9 +481,65 @@ export default async function SessionDetailPage({
                         </button>
                     </form>
                 )}
+
+                <div className="flex flex-wrap gap-3 border-t border-gray-200 pt-4 text-sm text-gray-600">
+                    <Link href={`/programs/${programId}`} className="underline">
+                        Back to Program
+                    </Link>
+                    <Link href={`/programs/${programId}/next`} className="underline">
+                        Continue Training
+                    </Link>
+                    {sessionNavigation.previousSessionId !== null ? (
+                        <Link
+                            href={`/programs/${programId}/sessions/${sessionNavigation.previousSessionId}`}
+                            className="underline"
+                        >
+                            Previous Session
+                        </Link>
+                    ) : (
+                        <span className="text-gray-400">Previous Session</span>
+                    )}
+                    {sessionNavigation.nextSessionId !== null ? (
+                        <Link
+                            href={`/programs/${programId}/sessions/${sessionNavigation.nextSessionId}`}
+                            className="underline"
+                        >
+                            Next Session
+                        </Link>
+                    ) : (
+                        <span className="text-gray-400">Next Session</span>
+                    )}
+                </div>
             </section>
         </main>
     );
+}
+
+function getSessionNavigation(
+    orderedSessions: { id: string }[],
+    currentSessionId: string,
+): {
+    previousSessionId: string | null;
+    nextSessionId: string | null;
+} {
+    const currentSessionIndex = orderedSessions.findIndex((orderedSession) => {
+        return orderedSession.id === currentSessionId;
+    });
+
+    if (currentSessionIndex === -1) {
+        return {
+            previousSessionId: null,
+            nextSessionId: null,
+        };
+    }
+
+    const previousSession = orderedSessions[currentSessionIndex - 1];
+    const nextSession = orderedSessions[currentSessionIndex + 1];
+
+    return {
+        previousSessionId: previousSession?.id ?? null,
+        nextSessionId: nextSession?.id ?? null,
+    };
 }
 
 function formatNullableText(value: string | null): string {
