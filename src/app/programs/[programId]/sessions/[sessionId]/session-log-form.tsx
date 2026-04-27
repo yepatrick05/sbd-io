@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface SaveLogsState {
     status: "idle" | "success" | "error";
@@ -38,6 +38,59 @@ export function SessionLogForm({
     const formRef = useRef<HTMLFormElement | null>(null);
     const [logStatus, setLogStatus] = useState<LogStatus>("clean");
     const [errorMessage, setErrorMessage] = useState("");
+    const hasUnsavedChanges = logStatus === "dirty";
+
+    useEffect(() => {
+        function handleBeforeUnload(event: BeforeUnloadEvent) {
+            if (!hasUnsavedChanges) {
+                return;
+            }
+
+            event.preventDefault();
+            event.returnValue = "";
+        }
+
+        function handleDocumentClick(event: MouseEvent) {
+            if (!hasUnsavedChanges) {
+                return;
+            }
+
+            if (event.defaultPrevented) {
+                return;
+            }
+
+            const clickTarget = event.target;
+
+            if (!(clickTarget instanceof Element)) {
+                return;
+            }
+
+            const navigationLink = clickTarget.closest<HTMLAnchorElement>('a[data-warn-unsaved="true"]');
+
+            if (navigationLink === null) {
+                return;
+            }
+
+            const shouldLeavePage = window.confirm(
+                "You have unsaved log changes. Leave this page without saving?",
+            );
+
+            if (shouldLeavePage) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        document.addEventListener("click", handleDocumentClick, true);
+
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+            document.removeEventListener("click", handleDocumentClick, true);
+        };
+    }, [hasUnsavedChanges]);
 
     let statusMessage = "Logs saved";
     let statusClassName = "rounded border border-green-300 bg-green-50 p-3 text-sm text-gray-700";

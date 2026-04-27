@@ -244,16 +244,21 @@ export default async function SessionDetailPage({
         <main className="space-y-6 p-6">
             <div className="space-y-2">
                 <div className="flex flex-wrap gap-3 text-sm text-gray-600">
-                    <Link href={`/programs/${programId}`} className="underline">
+                    <Link href={`/programs/${programId}`} className="underline" data-warn-unsaved="true">
                         Back to program
                     </Link>
-                    <Link href={`/programs/${programId}/next`} className="underline">
+                    <Link
+                        href={`/programs/${programId}/next`}
+                        className="underline"
+                        data-warn-unsaved="true"
+                    >
                         Continue Training
                     </Link>
                     {sessionNavigation.previousSessionId !== null ? (
                         <Link
                             href={`/programs/${programId}/sessions/${sessionNavigation.previousSessionId}`}
                             className="underline"
+                            data-warn-unsaved="true"
                         >
                             Previous Session
                         </Link>
@@ -264,6 +269,7 @@ export default async function SessionDetailPage({
                         <Link
                             href={`/programs/${programId}/sessions/${sessionNavigation.nextSessionId}`}
                             className="underline"
+                            data-warn-unsaved="true"
                         >
                             Next Session
                         </Link>
@@ -281,16 +287,17 @@ export default async function SessionDetailPage({
             </div>
 
             <div className="flex flex-wrap gap-3 text-sm text-gray-600">
-                <Link href={`/programs/${programId}`} className="underline">
+                <Link href={`/programs/${programId}`} className="underline" data-warn-unsaved="true">
                     Back to Program
                 </Link>
-                <Link href={`/programs/${programId}/next`} className="underline">
+                <Link href={`/programs/${programId}/next`} className="underline" data-warn-unsaved="true">
                     Continue Training
                 </Link>
                 {sessionNavigation.previousSessionId !== null ? (
                     <Link
                         href={`/programs/${programId}/sessions/${sessionNavigation.previousSessionId}`}
                         className="underline"
+                        data-warn-unsaved="true"
                     >
                         Previous Session
                     </Link>
@@ -301,6 +308,7 @@ export default async function SessionDetailPage({
                     <Link
                         href={`/programs/${programId}/sessions/${sessionNavigation.nextSessionId}`}
                         className="underline"
+                        data-warn-unsaved="true"
                     >
                         Next Session
                     </Link>
@@ -419,16 +427,17 @@ export default async function SessionDetailPage({
                 )}
 
                 <div className="flex flex-wrap gap-3 border-t border-gray-200 pt-4 text-sm text-gray-600">
-                    <Link href={`/programs/${programId}`} className="underline">
+                    <Link href={`/programs/${programId}`} className="underline" data-warn-unsaved="true">
                         Back to Program
                     </Link>
-                    <Link href={`/programs/${programId}/next`} className="underline">
+                    <Link href={`/programs/${programId}/next`} className="underline" data-warn-unsaved="true">
                         Continue Training
                     </Link>
                     {sessionNavigation.previousSessionId !== null ? (
                         <Link
                             href={`/programs/${programId}/sessions/${sessionNavigation.previousSessionId}`}
                             className="underline"
+                            data-warn-unsaved="true"
                         >
                             Previous Session
                         </Link>
@@ -439,6 +448,7 @@ export default async function SessionDetailPage({
                         <Link
                             href={`/programs/${programId}/sessions/${sessionNavigation.nextSessionId}`}
                             className="underline"
+                            data-warn-unsaved="true"
                         >
                             Next Session
                         </Link>
