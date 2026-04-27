@@ -77,7 +77,6 @@ export default async function NextSessionPage({
             return;
         }
 
-        // Only mark the session complete if it has not already been completed.
         await prisma.session.updateMany({
             where: {
                 id: sessionId,
@@ -208,9 +207,7 @@ export default async function NextSessionPage({
 
                         <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
                             <p className="text-gray-600">Intended Weekday</p>
-                            <p className="font-medium">
-                                {formatNullableText(nextSession.session.intendedWeekday)}
-                            </p>
+                            <p className="font-medium">{formatNullableText(nextSession.session.intendedWeekday)}</p>
                         </div>
                     </div>
 

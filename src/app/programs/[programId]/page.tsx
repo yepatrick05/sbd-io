@@ -5,14 +5,9 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProgramDetailPage({
-    params,
-}: {
-    params: Promise<{ programId: string }>;
-}) {
+export default async function ProgramDetailPage({ params }: { params: Promise<{ programId: string }> }) {
     const { programId } = await params;
 
-    // Read the full saved program so users can review its weeks and sessions.
     const program = await prisma.program.findUnique({
         where: {
             id: programId,
@@ -58,9 +53,7 @@ export default async function ProgramDetailPage({
                     Back to saved programs
                 </Link>
                 <h1 className="text-2xl font-semibold">{program.name}</h1>
-                <p className="text-sm text-gray-600">
-                    Created: {formatDate(program.createdAt)}
-                </p>
+                <p className="text-sm text-gray-600">Created: {formatDate(program.createdAt)}</p>
                 <Link href={`/programs/${program.id}/next`} className="text-sm text-gray-600 underline">
                     View next session
                 </Link>
@@ -87,9 +80,7 @@ export default async function ProgramDetailPage({
                         <div key={week.id} className="space-y-3 rounded border border-gray-200 bg-gray-50 p-4">
                             <div className="space-y-1">
                                 <h3 className="font-medium">Week {week.weekNumber}</h3>
-                                <p className="text-sm text-gray-600">
-                                    Sessions: {week.sessions.length}
-                                </p>
+                                <p className="text-sm text-gray-600">Sessions: {week.sessions.length}</p>
                             </div>
 
                             <div className="space-y-2">
@@ -100,15 +91,20 @@ export default async function ProgramDetailPage({
                                     >
                                         <div className="space-y-1">
                                             <p className="font-medium">Session {session.sessionOrder}</p>
-                                            <p className="text-gray-600">
-                                                Label: {session.label ?? "Not found"}
-                                            </p>
+                                            <p className="text-gray-600">Label: {session.label ?? "Not found"}</p>
                                             <p className="text-gray-600">
                                                 Intended weekday: {session.intendedWeekday ?? "Not found"}
                                             </p>
+                                            <p className="text-gray-600">Exercise count: {session.exercises.length}</p>
                                             <p className="text-gray-600">
-                                                Exercise count: {session.exercises.length}
+                                                Status: {session.completedAt === null ? "Incomplete" : "Completed"}
                                             </p>
+                                            <Link
+                                                href={`/programs/${program.id}/sessions/${session.id}`}
+                                                className="inline-block text-gray-600 underline"
+                                            >
+                                                View session details
+                                            </Link>
                                         </div>
 
                                         {session.exercises.length > 0 && (
@@ -119,12 +115,8 @@ export default async function ProgramDetailPage({
                                                             <th className="px-3 py-2 text-left font-medium">
                                                                 Exercise
                                                             </th>
-                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                Sets
-                                                            </th>
-                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                Reps
-                                                            </th>
+                                                            <th className="px-3 py-2 text-left font-medium">Sets</th>
+                                                            <th className="px-3 py-2 text-left font-medium">Reps</th>
                                                             <th className="px-3 py-2 text-left font-medium">
                                                                 Prescribed Load
                                                             </th>
