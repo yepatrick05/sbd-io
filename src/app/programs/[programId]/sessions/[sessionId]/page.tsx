@@ -10,7 +10,7 @@ export default async function SessionDetailPage({
     searchParams,
 }: {
     params: Promise<{ programId: string; sessionId: string }>;
-    searchParams: Promise<{ saved?: string }>;
+    searchParams: Promise<{ saved?: string; warning?: string; count?: string }>;
 }) {
     const { programId, sessionId } = await params;
     const resolvedSearchParams = await searchParams;
@@ -127,6 +127,7 @@ export default async function SessionDetailPage({
 
         const currentSessionId = formData.get("sessionId");
         const currentProgramId = formData.get("programId");
+        const confirmMissingActualRpe = formData.get("confirmMissingActualRpe");
 
         if (typeof currentSessionId !== "string" || currentSessionId === "") {
             return;
@@ -134,6 +135,14 @@ export default async function SessionDetailPage({
 
         if (typeof currentProgramId !== "string" || currentProgramId === "") {
             return;
+        }
+
+        const missingActualRpeCount = await countExercisesMissingActualRpe(currentSessionId);
+
+        if (missingActualRpeCount > 0 && confirmMissingActualRpe !== "true") {
+            redirect(
+                `/programs/${currentProgramId}/sessions/${currentSessionId}?warning=missing-actual-rpe&count=${missingActualRpeCount}`,
+            );
         }
 
         await prisma.session.updateMany({
@@ -176,6 +185,10 @@ export default async function SessionDetailPage({
     }
 
     const statusMessage = getStatusMessage(resolvedSearchParams.saved);
+    const warningMessage = getMissingActualRpeWarningMessage(
+        resolvedSearchParams.warning,
+        resolvedSearchParams.count,
+    );
 
     return (
         <main className="space-y-6 p-6">
@@ -190,6 +203,24 @@ export default async function SessionDetailPage({
             {statusMessage !== null && (
                 <div className="rounded border border-green-300 bg-green-50 p-3 text-sm text-gray-700">
                     {statusMessage}
+                </div>
+            )}
+
+            {warningMessage !== null && session.completedAt === null && (
+                <div className="space-y-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-gray-700">
+                    <p>{warningMessage}</p>
+
+                    <form action={markSessionComplete}>
+                        <input type="hidden" name="programId" value={programId} />
+                        <input type="hidden" name="sessionId" value={session.id} />
+                        <input type="hidden" name="confirmMissingActualRpe" value="true" />
+                        <button
+                            type="submit"
+                            className="rounded border border-amber-400 bg-white px-4 py-2 text-sm text-gray-700"
+                        >
+                            Complete Anyway
+                        </button>
+                    </form>
                 </div>
             )}
 
@@ -399,4 +430,52 @@ function getStatusMessage(savedValue: string | undefined): string | null {
     }
 
     return null;
+}
+
+async function countExercisesMissingActualRpe(sessionId: string): Promise<number> {
+    const exercisePrescriptions = await prisma.exercisePrescription.findMany({
+        where: {
+            sessionId,
+        },
+        include: {
+            logs: {
+                orderBy: {
+                    createdAt: "asc",
+                },
+            },
+        },
+    });
+
+    let missingActualRpeCount = 0;
+
+    for (const exercisePrescription of exercisePrescriptions) {
+        const existingLog = exercisePrescription.logs[0] ?? null;
+
+        if (existingLog === null || existingLog.actualRpe === null || existingLog.actualRpe.trim() === "") {
+            missingActualRpeCount += 1;
+        }
+    }
+
+    return missingActualRpeCount;
+}
+
+function getMissingActualRpeWarningMessage(
+    warningValue: string | undefined,
+    countValue: string | undefined,
+): string | null {
+    if (warningValue !== "missing-actual-rpe") {
+        return null;
+    }
+
+    const missingActualRpeCount = Number(countValue);
+
+    if (!Number.isFinite(missingActualRpeCount) || missingActualRpeCount <= 0) {
+        return "Some exercises are missing actual RPE. You can still complete this session if you want to.";
+    }
+
+    if (missingActualRpeCount === 1) {
+        return "1 exercise is missing actual RPE. You can still complete this session if you want to.";
+    }
+
+    return `${missingActualRpeCount} exercises are missing actual RPE. You can still complete this session if you want to.`;
 }
