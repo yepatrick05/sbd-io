@@ -1,10 +1,44 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
+import { DeleteProgramButton } from "./delete-program-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProgramsPage() {
+    async function deleteProgram(formData: FormData): Promise<{ error: string | null }> {
+        "use server";
+
+        const programId = formData.get("programId");
+
+        if (typeof programId !== "string" || programId === "") {
+            return {
+                error: "Program id is missing.",
+            };
+        }
+
+        try {
+            // Deleting the program also deletes its related records through cascade relations.
+            await prisma.program.delete({
+                where: {
+                    id: programId,
+                },
+            });
+        } catch {
+            return {
+                error: "Deleting the program failed. Please try again.",
+            };
+        }
+
+        revalidatePath("/programs");
+        revalidatePath("/");
+
+        return {
+            error: null,
+        };
+    }
+
     // Read saved programs from the database so users can browse imported programs.
     const programs = await prisma.program.findMany({
         orderBy: {
@@ -63,12 +97,11 @@ export default async function ProgramsPage() {
                         const exerciseCount = countExercises(program.blocks);
 
                         return (
-                            <Link
+                            <div
                                 key={program.id}
-                                href={`/programs/${program.id}`}
-                                className="rounded border border-gray-200 bg-white p-4 text-sm transition hover:border-black"
+                                className="rounded border border-gray-200 bg-white p-4 text-sm"
                             >
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                     <p className="text-lg font-medium">{program.name}</p>
                                     <p className="text-gray-600">
                                         Block: {firstBlock === null ? "Not found" : firstBlock.name}
@@ -79,8 +112,22 @@ export default async function ProgramsPage() {
                                     <p className="text-gray-600">
                                         Created: {formatDate(program.createdAt)}
                                     </p>
+
+                                    <div className="flex flex-wrap items-start gap-3">
+                                        <Link
+                                            href={`/programs/${program.id}`}
+                                            className="rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+                                        >
+                                            View Program
+                                        </Link>
+
+                                        <DeleteProgramButton
+                                            programId={program.id}
+                                            deleteProgramAction={deleteProgram}
+                                        />
+                                    </div>
                                 </div>
-                            </Link>
+                            </div>
                         );
                     })}
                 </div>
