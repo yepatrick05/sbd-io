@@ -47,12 +47,13 @@ Add a `.env` file with a PostgreSQL connection string:
 
 ```bash
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/sbd"
+DIRECT_URL="postgresql://postgres:postgres@localhost:5432/sbd"
 ```
 
 ### 3. Generate the Prisma client
 
 ```bash
-npx prisma generate
+npm run prisma:generate
 ```
 
 ### 4. Push the schema to your local database
@@ -60,7 +61,7 @@ npx prisma generate
 This repo currently ships the Prisma schema, but not a full migration history yet, so the simplest local setup is:
 
 ```bash
-npx prisma db push
+npm run prisma:db:push
 ```
 
 If your local schema drifts during development and you are okay losing local test data, reset the database first:
@@ -85,6 +86,8 @@ Open `http://localhost:3000` or the port shown in the terminal.
 - Prisma config lives in [prisma.config.ts](./prisma.config.ts)
 - Prisma schema lives in [prisma/schema.prisma](./prisma/schema.prisma)
 - The generated Prisma client is written to `src/generated/prisma`
+- `DATABASE_URL` is used by the app and Prisma Client
+- Prisma CLI prefers `DIRECT_URL` from `prisma.config.ts` when it is available, and falls back to `DATABASE_URL`
 
 The current schema includes:
 
@@ -97,6 +100,20 @@ The current schema includes:
 - `ImportSource`
 
 `Program.lastAccessedAt` is used to infer the current program from user activity.
+
+### Supabase deployment note
+
+For Supabase-hosted Postgres, use:
+
+- `DATABASE_URL`
+  - your pooled or standard connection string used by the app at runtime
+- `DIRECT_URL`
+  - your direct Postgres connection string for Prisma CLI operations
+
+Do not commit your real database password or full production connection string into the repo. Add those values in:
+
+- local `.env` for development
+- Vercel project environment variables for deployment
 
 ## Testing
 
