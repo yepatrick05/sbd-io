@@ -56,7 +56,8 @@ export function getButtonClassName({
                 "w-full": fullWidth,
                 "px-4 py-2.5": size === "default",
                 "px-3 py-2": size === "sm",
-                "border-accent bg-accent text-accent-foreground hover:bg-[#cc001b]": variant === "primary",
+                "border-[#efbcc5] bg-current-surface text-current-foreground hover:border-[#e59aa8] hover:bg-[#f4d8de]":
+                    variant === "primary",
                 "border-border bg-surface text-foreground hover:bg-surface-muted": variant === "secondary",
                 "border-transparent bg-transparent text-muted-foreground hover:bg-surface-muted hover:text-foreground":
                     variant === "ghost",

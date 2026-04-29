@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
+import { getButtonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 
@@ -91,14 +92,19 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
     return (
         <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-8">
             <div className="space-y-3">
-                <Link href="/programs" className="text-sm text-muted-foreground underline">
-                    Back to saved programs
-                </Link>
                 <h1 className="text-3xl font-semibold tracking-[-0.03em] text-foreground">{program.name}</h1>
                 <p className="text-sm text-muted-foreground">Created: {formatDate(program.createdAt)}</p>
-                <Link href={`/programs/${program.id}/next`} className="text-sm text-muted-foreground underline">
-                    Continue Training
-                </Link>
+                <div className="flex flex-wrap gap-3 pt-1">
+                    <Link
+                        href={`/programs/${program.id}/next`}
+                        className={getButtonClassName({ variant: "primary" })}
+                    >
+                        Continue Training
+                    </Link>
+                    <Link href="/programs" className={getButtonClassName({ variant: "secondary" })}>
+                        Back to saved programs
+                    </Link>
+                </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -193,7 +199,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
                                                 <div className="space-y-3 border-t border-border bg-surface px-4 py-4 text-sm">
                                                     <Link
                                                         href={`/programs/${program.id}/sessions/${session.id}`}
-                                                        className="inline-block text-muted-foreground underline"
+                                                        className={getButtonClassName({ variant: "ghost", size: "sm" })}
                                                     >
                                                         View session details
                                                     </Link>

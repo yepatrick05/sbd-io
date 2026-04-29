@@ -1,8 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Children, type ReactNode, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button, getButtonClassName } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import type {
     HeaderRowCandidate,
     NormalisedSessionPreview,
@@ -15,10 +18,12 @@ import type {
 } from "@/types/workbook";
 
 export default function UploadPage() {
+    const router = useRouter();
     const [workbookPreview, setWorkbookPreview] = useState<WorkbookPreview | null>(null);
     const [selectedSheetName, setSelectedSheetName] = useState<string | null>(null);
+    const [activeParsedBlockSheetName, setActiveParsedBlockSheetName] = useState<string | null>(null);
     const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
-    const [savedProgramId, setSavedProgramId] = useState<string | null>(null);
+    const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
     const [expandedSessionKeys, setExpandedSessionKeys] = useState<string[]>([]);
     const [showDebugDetails, setShowDebugDetails] = useState(false);
     const [isSavingImport, setIsSavingImport] = useState(false);
@@ -37,10 +42,10 @@ export default function UploadPage() {
 
         setWorkbookPreview(preview);
         setConfirmMessage(null);
-        setSavedProgramId(null);
         setExpandedSessionKeys([]);
         setShowDebugDetails(false);
         setIsSavingImport(false);
+        setActiveParsedBlockSheetName(preview.programPreview?.blocks[0]?.sheetName ?? null);
 
         if (preview.sheets.length > 0) {
             setSelectedSheetName(preview.sheets[0].name);
@@ -86,10 +91,12 @@ export default function UploadPage() {
     const totalErrorCount = countIssuesBySeverity(validationIssues, "error");
     const totalWarningCount = countIssuesBySeverity(validationIssues, "warning");
     const hasBlockingErrors = totalErrorCount > 0;
-    const reviewSummary = buildReviewSummary(programPreview, validationIssues);
     const reviewLevelIssues = getReviewLevelIssues(validationIssues);
     const unparsedSheetIssues = getUnparsedSheetIssues(validationIssues);
     const groupedImportWarnings = getGroupedImportWarnings(validationIssues);
+    const parsedBlocks = programPreview?.blocks ?? [];
+    const activeParsedBlock =
+        parsedBlocks.find((block) => block.sheetName === activeParsedBlockSheetName) ?? parsedBlocks[0] ?? null;
 
     async function handleConfirmImport() {
         if (hasBlockingErrors) {
@@ -104,7 +111,6 @@ export default function UploadPage() {
 
         setIsSavingImport(true);
         setConfirmMessage(null);
-        setSavedProgramId(null);
 
         try {
             const response = await fetch("/api/import", {
@@ -124,8 +130,12 @@ export default function UploadPage() {
                 return;
             }
 
-            setConfirmMessage(`Import saved successfully. Program id: ${responseBody.programId}`);
-            setSavedProgramId(responseBody.programId ?? null);
+            if (responseBody.programId === undefined) {
+                setConfirmMessage("Import was saved, but the program page could not be opened.");
+                return;
+            }
+
+            router.push(`/programs/${responseBody.programId}`);
         } catch {
             setConfirmMessage("Failed to save import.");
         } finally {
@@ -147,133 +157,195 @@ export default function UploadPage() {
     }
 
     return (
-        <main className="space-y-6 p-6">
+        <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-8">
             <div className="space-y-3">
-                <h1 className="max-w-2xl text-3xl font-semibold tracking-[-0.03em] text-foreground">Upload Workbook</h1>
+                <h1 className="max-w-2xl text-3xl font-semibold tracking-[-0.03em] text-foreground">
+                    Upload Workbook
+                </h1>
                 <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                     Upload an Excel program, review the parsed result, then confirm the import.
                 </p>
             </div>
 
-            <form onSubmit={handleUpload} className="space-y-3 rounded border border-gray-200 bg-white p-4">
-                <input type="file" name="file" accept=".xlsx" required />
-                <div>
-                    <button
-                        type="submit"
-                        className="rounded border border-black bg-black px-3 py-1.5 text-sm text-white"
+            <form onSubmit={handleUpload}>
+                <Card className="space-y-5 p-5">
+                    <div className="space-y-2">
+                        <p className="text-sm font-medium text-foreground">Choose a workbook</p>
+                        <p className="text-sm text-muted-foreground">
+                            `.xlsx` only. The workbook will be parsed for review before anything is saved.
+                        </p>
+                    </div>
+
+                    <label
+                        htmlFor="workbook-file"
+                        className="block cursor-pointer rounded-lg border border-dashed border-border bg-surface-muted p-5"
                     >
-                        Upload
-                    </button>
-                </div>
+                        <input
+                            id="workbook-file"
+                            type="file"
+                            name="file"
+                            accept=".xlsx"
+                            required
+                            className="sr-only"
+                            onChange={(event) => {
+                                const selectedFile = event.currentTarget.files?.[0] ?? null;
+
+                                if (selectedFile === null) {
+                                    setSelectedFileName(null);
+                                    return;
+                                }
+
+                                setSelectedFileName(selectedFile.name);
+                            }}
+                        />
+
+                        <div className="space-y-3">
+                            <span className={getButtonClassName({ variant: "secondary", size: "sm" })}>
+                                Choose `.xlsx` file
+                            </span>
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-foreground">
+                                    {selectedFileName === null ? "No file selected yet" : selectedFileName}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Coach spreadsheets stay unchanged until you confirm the parsed import.
+                                </p>
+                            </div>
+                        </div>
+                    </label>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button type="submit">Parse Workbook</Button>
+                        <p className="text-sm text-muted-foreground">
+                            Review the parsed weeks, sessions, and warnings before saving.
+                        </p>
+                    </div>
+                </Card>
             </form>
 
             {workbookPreview !== null && (
                 <section className="space-y-6">
-                    <div className="space-y-4 rounded border border-gray-200 bg-gray-50 p-4">
-                        <div className="space-y-2">
-                            <h2 className="text-lg font-semibold">Import Review</h2>
-                            <p className="text-sm text-gray-600">
-                                Review the summary first, then expand individual sessions only when you need more
-                                detail.
-                            </p>
-                        </div>
-
-                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                            <SummaryCard label="Program Name" value={reviewSummary.programName} />
-                            <SummaryCard label="Sheet Name" value={reviewSummary.sheetName} />
-                            <SummaryCard label="Total Weeks" value={String(reviewSummary.totalWeeks)} />
-                            <SummaryCard label="Total Sessions" value={String(reviewSummary.totalSessions)} />
-                            <SummaryCard label="Total Exercises" value={String(reviewSummary.totalExercises)} />
-                            <SummaryCard label="Errors" value={String(totalErrorCount)} />
-                            <SummaryCard label="Warnings" value={`${groupedImportWarnings.length} types`} />
-                            <SummaryCard label="Import Status" value={hasBlockingErrors ? "Blocked" : "Ready"} />
-                        </div>
-
-                        <div
-                            className={
-                                hasBlockingErrors
-                                    ? "rounded border border-red-300 bg-red-50 p-3 text-sm"
-                                    : "rounded border border-green-300 bg-green-50 p-3 text-sm"
-                            }
-                        >
-                            <p className="font-medium">
-                                {hasBlockingErrors
-                                    ? "Blocking errors were found. Import cannot be confirmed yet."
-                                    : "No blocking errors were found. Import can be confirmed."}
-                            </p>
-                            <p className="text-gray-700">
-                                Errors: {totalErrorCount} | Warning types: {groupedImportWarnings.length} | Warning
-                                instances: {totalWarningCount}
-                            </p>
-                        </div>
-
-                        {reviewLevelIssues.length > 0 && (
+                    <Card className="space-y-5 p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="space-y-2">
-                                <p className="text-sm font-medium">Import review notes</p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant={hasBlockingErrors ? "error" : "completed"}>
+                                        {hasBlockingErrors ? "Blocked" : "Ready"}
+                                    </Badge>
+                                    <p className="text-sm text-muted-foreground">Import Review</p>
+                                </div>
 
-                                {reviewLevelIssues.map((issue, issueIndex) => (
-                                    <div
-                                        key={issueIndex}
+                                <div className="space-y-1">
+                                    <h2 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">
+                                        {workbookPreview.originalFileName}
+                                    </h2>
+                                    {programPreview !== null && (
+                                        <p className="text-sm text-muted-foreground">
+                                            Parsed program: {programPreview.programName}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 text-sm">
+                                <Button
+                                    type="button"
+                                    onClick={handleConfirmImport}
+                                    disabled={hasBlockingErrors || isSavingImport}
+                                >
+                                    {isSavingImport ? "Saving Import..." : "Confirm Import"}
+                                </Button>
+
+                                {confirmMessage !== null && (
+                                    <p
                                         className={
-                                            issue.severity === "error"
-                                                ? "rounded border border-red-300 bg-red-50 p-3 text-sm"
-                                                : "rounded border border-yellow-300 bg-yellow-50 p-3 text-sm"
+                                            hasBlockingErrors || confirmMessage.includes("Failed")
+                                                ? "text-danger-foreground"
+                                                : "text-muted-foreground"
                                         }
                                     >
-                                        <p className="font-medium">
-                                            {formatSeverity(issue.severity)}: {issue.message}
-                                        </p>
-                                    </div>
-                                ))}
+                                        {confirmMessage}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <Card
+                            variant="muted"
+                            className={hasBlockingErrors ? "border-[#e6b8b2] p-4" : "border-[#cad9c7] p-4"}
+                        >
+                            <div className="space-y-1 text-sm">
+                                <p className="font-medium text-foreground">
+                                    {hasBlockingErrors
+                                        ? "Blocking errors were found. Confirm Import is disabled until they are resolved."
+                                        : "No blocking errors were found. Confirm Import is available."}
+                                </p>
+                                <p className="text-muted-foreground">
+                                    Errors: {totalErrorCount} | Warnings: {totalWarningCount}
+                                </p>
+                            </div>
+                        </Card>
+
+                        {reviewLevelIssues.length > 0 && (
+                            <div className="space-y-3">
+                                <p className="text-sm font-medium text-foreground">Import review notes</p>
+
+                                <div className="space-y-2">
+                                    {reviewLevelIssues.map((issue, issueIndex) => (
+                                        <IssueCard key={issueIndex} issue={issue} />
+                                    ))}
+                                </div>
                             </div>
                         )}
 
                         {unparsedSheetIssues.length > 0 && (
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium">Sheets that were not parsed confidently</p>
+                            <div className="space-y-3">
+                                <p className="text-sm font-medium text-foreground">
+                                    Sheets that were not parsed confidently
+                                </p>
 
-                                {unparsedSheetIssues.map((issue, issueIndex) => (
-                                    <div
-                                        key={issueIndex}
-                                        className="rounded border border-yellow-300 bg-yellow-50 p-3 text-sm"
-                                    >
-                                        <p className="font-medium">{issue.sheetName}</p>
-                                        <p className="text-gray-700">{issue.message}</p>
-                                    </div>
-                                ))}
+                                <div className="space-y-2">
+                                    {unparsedSheetIssues.map((issue, issueIndex) => (
+                                        <Card key={issueIndex} className="border-[#dccda8] p-4 text-sm">
+                                            <p className="font-medium text-foreground">{issue.sheetName}</p>
+                                            <p className="mt-1 text-muted-foreground">{issue.message}</p>
+                                        </Card>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
                         {groupedImportWarnings.length > 0 && (
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium">Warning summary</p>
+                            <details className="rounded-lg border border-border bg-surface">
+                                <summary className="cursor-pointer list-none px-4 py-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div className="space-y-1">
+                                            <p className="font-medium text-foreground">Warnings</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {groupedImportWarnings.length} warning type
+                                                {groupedImportWarnings.length === 1 ? "" : "s"}
+                                            </p>
+                                        </div>
 
-                                <div className="space-y-2">
+                                        <Badge variant="warning">{totalWarningCount} total</Badge>
+                                    </div>
+                                </summary>
+
+                                <div className="space-y-3 border-t border-border px-4 py-4">
                                     {groupedImportWarnings.map((warningSummary, warningIndex) => (
-                                        <div
-                                            key={warningIndex}
-                                            className="rounded border border-yellow-300 bg-yellow-50 p-3 text-sm"
-                                        >
-                                            <p className="font-medium">{warningSummary.message}</p>
-                                            <p className="text-gray-700">
+                                        <Card key={warningIndex} className="border-[#dccda8] p-4 text-sm">
+                                            <p className="font-medium text-foreground">{warningSummary.message}</p>
+                                            <p className="mt-1 text-muted-foreground">
                                                 {warningSummary.count} occurrence
                                                 {warningSummary.count === 1 ? "" : "s"}
                                             </p>
-                                        </div>
-                                    ))}
-                                </div>
 
-                                <details className="rounded border border-gray-200 bg-white p-3 text-sm">
-                                    <summary className="cursor-pointer font-medium text-gray-700">
-                                        Show warning details
-                                    </summary>
+                                            <details className="mt-3 rounded-md border border-border bg-surface p-3">
+                                                <summary className="cursor-pointer font-medium text-muted-foreground">
+                                                    Show warning details
+                                                </summary>
 
-                                    <div className="mt-3 space-y-2">
-                                        {groupedImportWarnings.map((warningSummary, warningIndex) => (
-                                            <div key={warningIndex} className="rounded border border-gray-200 p-3">
-                                                <p className="font-medium">{warningSummary.message}</p>
-
-                                                <div className="mt-2 space-y-1 text-gray-600">
+                                                <div className="mt-3 space-y-1 text-muted-foreground">
                                                     {warningSummary.issues.map((issue, issueIndex) => (
                                                         <p key={issueIndex}>
                                                             Sheet: {formatTextValue(issue.sheetName)} | Week:{" "}
@@ -284,614 +356,504 @@ export default function UploadPage() {
                                                         </p>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </details>
-                            </div>
+                                            </details>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </details>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-3">
-                            <button
-                                type="button"
-                                onClick={handleConfirmImport}
-                                disabled={hasBlockingErrors || isSavingImport}
-                                className={
-                                    hasBlockingErrors || isSavingImport
-                                        ? "rounded border border-gray-300 bg-gray-200 px-4 py-2 text-sm text-gray-500"
-                                        : "rounded border border-black bg-black px-4 py-2 text-sm text-white"
-                                }
-                            >
-                                {isSavingImport ? "Saving Import..." : "Confirm Import"}
-                            </button>
-
-                            {confirmMessage !== null && <p className="text-sm text-gray-600">{confirmMessage}</p>}
-                            {savedProgramId !== null && (
-                                <Link href={`/programs/${savedProgramId}`} className="text-sm text-gray-700 underline">
-                                    View saved program
-                                </Link>
-                            )}
-                        </div>
-
                         {programPreview === null && (
-                            <p className="text-sm text-gray-600">No program preview was created.</p>
+                            <p className="text-sm text-muted-foreground">No program preview was created.</p>
                         )}
 
                         {programPreview !== null && (
-                            <div className="space-y-4">
-                                {programPreview.blocks.map((block, blockIndex) => (
-                                    <div
-                                        key={blockIndex}
-                                        className="space-y-4 rounded border border-gray-200 bg-white p-4"
-                                    >
+                            <details className="rounded-lg border border-border bg-surface">
+                                <summary className="cursor-pointer list-none px-4 py-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
                                         <div className="space-y-1">
-                                            <p className="font-medium">Sheet: {block.sheetName}</p>
+                                            <p className="font-medium text-foreground">Parsed program details</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Open one parsed sheet at a time, then expand weeks and sessions only
+                                                when you need more detail.
+                                            </p>
                                         </div>
 
-                                        {block.weeks.map((week, weekIndex) => {
-                                            const weekExerciseCount = countExercisesInWeek(week);
-                                            const weekErrorCount = countIssuesForWeek(
-                                                validationIssues,
-                                                week.weekNumber,
-                                                "error",
-                                            );
-                                            const weekWarningCount = countIssuesForWeek(
-                                                validationIssues,
-                                                week.weekNumber,
-                                                "warning",
-                                            );
+                                        <Badge variant="neutral">
+                                            {parsedBlocks.length} parsed sheet{parsedBlocks.length === 1 ? "" : "s"}
+                                        </Badge>
+                                    </div>
+                                </summary>
 
-                                            return (
-                                                <div
-                                                    key={weekIndex}
-                                                    className="space-y-3 rounded border border-gray-200 bg-gray-50 p-4"
-                                                >
-                                                    <div className="flex flex-wrap items-center justify-between gap-3">
-                                                        <div className="space-y-1">
-                                                            <p className="font-medium">
-                                                                Week {formatNumberValue(week.weekNumber)}
-                                                            </p>
-                                                            <p className="text-sm text-gray-600">
-                                                                Sessions: {week.sessions.length} | Exercises:{" "}
-                                                                {weekExerciseCount}
-                                                            </p>
-                                                        </div>
+                                <div className="space-y-4 border-t border-border px-4 py-4">
+                                    {parsedBlocks.length > 1 && (
+                                        <div className="flex flex-wrap gap-2 border-b border-border pb-4">
+                                            {parsedBlocks.map((block) => {
+                                                const isActiveTab = activeParsedBlock?.sheetName === block.sheetName;
 
-                                                        <div className="text-sm text-gray-600">
-                                                            Errors: {weekErrorCount} | Warnings: {weekWarningCount}
-                                                        </div>
-                                                    </div>
+                                                return (
+                                                    <button
+                                                        key={block.sheetName}
+                                                        type="button"
+                                                        onClick={() => setActiveParsedBlockSheetName(block.sheetName)}
+                                                        className={getButtonClassName({
+                                                            variant: isActiveTab ? "primary" : "secondary",
+                                                            size: "sm",
+                                                        })}
+                                                    >
+                                                        {block.sheetName}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
 
-                                                    <div className="space-y-2">
-                                                        {week.sessions.map((session, sessionIndex) => {
-                                                            const sessionKey = getSessionKey(session);
-                                                            const sessionIsExpanded =
-                                                                expandedSessionKeys.includes(sessionKey);
-                                                            const sessionErrorCount = countIssuesForSession(
-                                                                validationIssues,
-                                                                session,
-                                                                "error",
-                                                            );
-                                                            const sessionWarningCount = countIssuesForSession(
-                                                                validationIssues,
-                                                                session,
-                                                                "warning",
-                                                            );
-                                                            const sessionIssues = getIssuesForSession(
-                                                                validationIssues,
-                                                                session,
-                                                            );
-                                                            const sessionErrors = sessionIssues.filter((issue) => {
-                                                                return issue.severity === "error";
-                                                            });
-                                                            const groupedSessionWarnings =
-                                                                getGroupedWarningSummaries(sessionIssues);
+                                    {activeParsedBlock !== null && (
+                                        <div className="space-y-4">
+                                            {parsedBlocks.length > 1 && (
+                                                <p className="text-sm text-muted-foreground">
+                                                    Showing parsed details for {activeParsedBlock.sheetName}.
+                                                </p>
+                                            )}
 
-                                                            return (
-                                                                <div
-                                                                    key={sessionIndex}
-                                                                    className="rounded border border-gray-200 bg-white"
+                                            {activeParsedBlock.weeks.map((week, weekIndex) => {
+                                                const weekExerciseCount = countExercisesInWeek(week);
+                                                const weekErrorCount = countIssuesForWeek(
+                                                    validationIssues,
+                                                    week.weekNumber,
+                                                    "error",
+                                                );
+                                                const weekWarningCount = countIssuesForWeek(
+                                                    validationIssues,
+                                                    week.weekNumber,
+                                                    "warning",
+                                                );
+
+                                                return (
+                                                    <Card key={weekIndex} variant="muted" className="space-y-3 p-4">
+                                                        <div className="flex flex-wrap items-center justify-between gap-3">
+                                                            <div className="space-y-1">
+                                                                <p className="font-medium text-foreground">
+                                                                    Week {formatNumberValue(week.weekNumber)}
+                                                                </p>
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    Sessions: {week.sessions.length} | Exercises:{" "}
+                                                                    {weekExerciseCount}
+                                                                </p>
+                                                            </div>
+
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <Badge variant={weekErrorCount > 0 ? "error" : "neutral"}>
+                                                                    Errors: {weekErrorCount}
+                                                                </Badge>
+                                                                <Badge
+                                                                    variant={
+                                                                        weekWarningCount > 0 ? "warning" : "neutral"
+                                                                    }
                                                                 >
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => toggleSession(session)}
-                                                                        className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left"
-                                                                    >
-                                                                        <div className="space-y-1">
-                                                                            <p className="font-medium">
-                                                                                Session{" "}
-                                                                                {formatNumberValue(
-                                                                                    session.sessionOrder,
-                                                                                )}
-                                                                            </p>
-                                                                            <p className="text-sm text-gray-600">
-                                                                                {formatTextValue(session.sessionLabel)}
-                                                                            </p>
-                                                                        </div>
+                                                                    Warnings: {weekWarningCount}
+                                                                </Badge>
+                                                            </div>
+                                                        </div>
 
-                                                                        <div className="text-sm text-gray-600">
-                                                                            <p>
-                                                                                {formatCompactWeekday(
-                                                                                    session.intendedWeekday,
-                                                                                )}{" "}
-                                                                                | Exercises: {session.exercises.length}
-                                                                            </p>
-                                                                            <p>
-                                                                                Errors: {sessionErrorCount} | Warnings:{" "}
-                                                                                {sessionWarningCount}
-                                                                            </p>
-                                                                        </div>
+                                                        <div className="space-y-2">
+                                                            {week.sessions.map((session, sessionIndex) => {
+                                                                const sessionKey = getSessionKey(session);
+                                                                const sessionIsExpanded =
+                                                                    expandedSessionKeys.includes(sessionKey);
+                                                                const sessionErrorCount = countIssuesForSession(
+                                                                    validationIssues,
+                                                                    session,
+                                                                    "error",
+                                                                );
+                                                                const sessionWarningCount = countIssuesForSession(
+                                                                    validationIssues,
+                                                                    session,
+                                                                    "warning",
+                                                                );
+                                                                const sessionIssues = getIssuesForSession(
+                                                                    validationIssues,
+                                                                    session,
+                                                                );
+                                                                const sessionErrors = sessionIssues.filter((issue) => {
+                                                                    return issue.severity === "error";
+                                                                });
+                                                                const groupedSessionWarnings =
+                                                                    getGroupedWarningSummaries(sessionIssues);
 
-                                                                        <div className="text-sm text-gray-600">
-                                                                            {sessionIsExpanded
-                                                                                ? "Hide details"
-                                                                                : "Show details"}
-                                                                        </div>
-                                                                    </button>
-
-                                                                    {sessionIsExpanded && (
-                                                                        <div className="space-y-3 border-t border-gray-200 px-4 py-4">
-                                                                            <div className="space-y-1 text-sm text-gray-600">
-                                                                                <p>
-                                                                                    Intended weekday:{" "}
-                                                                                    {formatTextValue(
-                                                                                        session.intendedWeekday,
+                                                                return (
+                                                                    <Card key={sessionIndex} className="overflow-hidden">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => toggleSession(session)}
+                                                                            className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left"
+                                                                        >
+                                                                            <div className="space-y-1">
+                                                                                <p className="font-medium text-foreground">
+                                                                                    Session{" "}
+                                                                                    {formatNumberValue(
+                                                                                        session.sessionOrder,
                                                                                     )}
                                                                                 </p>
-                                                                                <p>
-                                                                                    Source region: row{" "}
-                                                                                    {session.startRowNumber} to{" "}
-                                                                                    {session.endRowNumber}, columns{" "}
-                                                                                    {session.startColumnIndex} to{" "}
-                                                                                    {session.endColumnIndex}
+                                                                                <p className="text-sm text-muted-foreground">
+                                                                                    {formatTextValue(session.sessionLabel)}
                                                                                 </p>
                                                                             </div>
 
-                                                                            {sessionErrors.length > 0 && (
-                                                                                <div className="space-y-2">
-                                                                                    <p className="font-medium text-sm">
-                                                                                        Errors for this session
-                                                                                    </p>
+                                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                                <Badge
+                                                                                    variant={
+                                                                                        sessionErrorCount > 0
+                                                                                            ? "error"
+                                                                                            : "neutral"
+                                                                                    }
+                                                                                >
+                                                                                    Errors: {sessionErrorCount}
+                                                                                </Badge>
+                                                                                <Badge
+                                                                                    variant={
+                                                                                        sessionWarningCount > 0
+                                                                                            ? "warning"
+                                                                                            : "neutral"
+                                                                                    }
+                                                                                >
+                                                                                    Warnings: {sessionWarningCount}
+                                                                                </Badge>
+                                                                                <Badge variant="neutral">
+                                                                                    {session.exercises.length} exercises
+                                                                                </Badge>
+                                                                            </div>
+                                                                        </button>
 
-                                                                                    {sessionErrors.map(
-                                                                                        (issue, issueIndex) => (
-                                                                                            <div
-                                                                                                key={issueIndex}
-                                                                                                className="rounded border border-red-300 bg-red-50 p-3 text-sm"
-                                                                                            >
-                                                                                                <p className="font-medium">
-                                                                                                    {formatSeverity(
-                                                                                                        issue.severity,
-                                                                                                    )}
-                                                                                                    : {issue.message}
-                                                                                                </p>
-                                                                                                <p className="text-gray-600">
-                                                                                                    Exercise:{" "}
-                                                                                                    {formatTextValue(
-                                                                                                        issue.exerciseName,
-                                                                                                    )}{" "}
-                                                                                                    | Source row:{" "}
-                                                                                                    {formatNumberValue(
-                                                                                                        issue.sourceRowNumber,
-                                                                                                    )}
-                                                                                                </p>
-                                                                                            </div>
-                                                                                        ),
-                                                                                    )}
+                                                                        {sessionIsExpanded && (
+                                                                            <div className="space-y-3 border-t border-border px-4 py-4">
+                                                                                <div className="space-y-1 text-sm text-muted-foreground">
+                                                                                    <p>
+                                                                                        Source region: row{" "}
+                                                                                        {session.startRowNumber} to{" "}
+                                                                                        {session.endRowNumber}, columns{" "}
+                                                                                        {session.startColumnIndex} to{" "}
+                                                                                        {session.endColumnIndex}
+                                                                                    </p>
                                                                                 </div>
-                                                                            )}
 
-                                                                            {groupedSessionWarnings.length > 0 && (
-                                                                                <div className="space-y-2">
-                                                                                    <p className="font-medium text-sm">
-                                                                                        Warning summary for this session
-                                                                                    </p>
+                                                                                {sessionErrors.length > 0 && (
+                                                                                    <div className="space-y-2">
+                                                                                        <p className="text-sm font-medium text-foreground">
+                                                                                            Errors for this session
+                                                                                        </p>
 
-                                                                                    {groupedSessionWarnings.map(
-                                                                                        (
-                                                                                            warningSummary,
-                                                                                            warningIndex,
-                                                                                        ) => (
-                                                                                            <div
-                                                                                                key={warningIndex}
-                                                                                                className="rounded border border-yellow-300 bg-yellow-50 p-3 text-sm"
-                                                                                            >
-                                                                                                <p className="font-medium">
-                                                                                                    {
-                                                                                                        warningSummary.message
-                                                                                                    }
-                                                                                                </p>
-                                                                                                <p className="text-gray-600">
-                                                                                                    {
-                                                                                                        warningSummary.count
-                                                                                                    }{" "}
-                                                                                                    occurrence
-                                                                                                    {warningSummary.count ===
-                                                                                                    1
-                                                                                                        ? ""
-                                                                                                        : "s"}
-                                                                                                </p>
-                                                                                            </div>
-                                                                                        ),
-                                                                                    )}
+                                                                                        {sessionErrors.map((issue, issueIndex) => (
+                                                                                            <IssueCard
+                                                                                                key={issueIndex}
+                                                                                                issue={issue}
+                                                                                            />
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
 
-                                                                                    <details className="rounded border border-gray-200 bg-white p-3 text-sm">
-                                                                                        <summary className="cursor-pointer font-medium text-gray-700">
+                                                                                {groupedSessionWarnings.length > 0 && (
+                                                                                    <details className="rounded-lg border border-border bg-surface p-3">
+                                                                                        <summary className="cursor-pointer font-medium text-muted-foreground">
                                                                                             Show warning details
                                                                                         </summary>
 
-                                                                                        <div className="mt-3 space-y-2 text-gray-600">
+                                                                                        <div className="mt-3 space-y-2">
                                                                                             {groupedSessionWarnings
-                                                                                                .flatMap(
-                                                                                                    (
-                                                                                                        warningSummary,
-                                                                                                    ) => {
-                                                                                                        return warningSummary.issues;
-                                                                                                    },
-                                                                                                )
-                                                                                                .map(
-                                                                                                    (
-                                                                                                        issue,
-                                                                                                        issueIndex,
-                                                                                                    ) => (
-                                                                                                        <p
-                                                                                                            key={
-                                                                                                                issueIndex
-                                                                                                            }
-                                                                                                        >
-                                                                                                            {
-                                                                                                                issue.message
-                                                                                                            }{" "}
-                                                                                                            | Exercise:{" "}
-                                                                                                            {formatTextValue(
-                                                                                                                issue.exerciseName,
-                                                                                                            )}{" "}
-                                                                                                            | Source
-                                                                                                            row:{" "}
-                                                                                                            {formatNumberValue(
-                                                                                                                issue.sourceRowNumber,
-                                                                                                            )}
-                                                                                                        </p>
-                                                                                                    ),
-                                                                                                )}
+                                                                                                .flatMap((warningSummary) => {
+                                                                                                    return warningSummary.issues;
+                                                                                                })
+                                                                                                .map((issue, issueIndex) => (
+                                                                                                    <p
+                                                                                                        key={issueIndex}
+                                                                                                        className="text-sm text-muted-foreground"
+                                                                                                    >
+                                                                                                        {issue.message} | Exercise:{" "}
+                                                                                                        {formatTextValue(
+                                                                                                            issue.exerciseName,
+                                                                                                        )}{" "}
+                                                                                                        | Source row:{" "}
+                                                                                                        {formatNumberValue(
+                                                                                                            issue.sourceRowNumber,
+                                                                                                        )}
+                                                                                                    </p>
+                                                                                                ))}
                                                                                         </div>
                                                                                     </details>
-                                                                                </div>
-                                                                            )}
+                                                                                )}
 
-                                                                            <div className="overflow-x-auto rounded border border-gray-200">
-                                                                                <table className="min-w-full border-collapse text-sm">
-                                                                                    <thead className="bg-gray-50">
-                                                                                        <tr className="border-b border-gray-200">
-                                                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                                                Exercise
-                                                                                            </th>
-                                                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                                                Sets
-                                                                                            </th>
-                                                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                                                Reps
-                                                                                            </th>
-                                                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                                                Prescribed Load
-                                                                                            </th>
-                                                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                                                Prescribed RPE
-                                                                                            </th>
-                                                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                                                Selected Load
-                                                                                            </th>
-                                                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                                                Actual RPE
-                                                                                            </th>
-                                                                                        </tr>
-                                                                                    </thead>
-                                                                                    <tbody>
-                                                                                        {session.exercises.map(
-                                                                                            (
-                                                                                                exercise,
-                                                                                                exerciseIndex,
-                                                                                            ) => (
-                                                                                                <ExerciseReviewRows
-                                                                                                    key={exerciseIndex}
-                                                                                                    exercise={exercise}
-                                                                                                />
-                                                                                            ),
-                                                                                        )}
-                                                                                    </tbody>
-                                                                                </table>
+                                                                                <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+                                                                                    <table className="min-w-full border-collapse text-sm">
+                                                                                        <thead className="bg-surface-muted">
+                                                                                            <tr className="border-b border-border">
+                                                                                                <th className="px-3 py-2 text-left font-medium text-foreground">
+                                                                                                    Exercise
+                                                                                                </th>
+                                                                                                <th className="px-3 py-2 text-left font-medium text-foreground">
+                                                                                                    Sets
+                                                                                                </th>
+                                                                                                <th className="px-3 py-2 text-left font-medium text-foreground">
+                                                                                                    Reps
+                                                                                                </th>
+                                                                                                <th className="px-3 py-2 text-left font-medium text-foreground">
+                                                                                                    Prescribed Load
+                                                                                                </th>
+                                                                                                <th className="px-3 py-2 text-left font-medium text-foreground">
+                                                                                                    Prescribed RPE
+                                                                                                </th>
+                                                                                                <th className="px-3 py-2 text-left font-medium text-foreground">
+                                                                                                    Selected Load
+                                                                                                </th>
+                                                                                                <th className="px-3 py-2 text-left font-medium text-foreground">
+                                                                                                    Actual RPE
+                                                                                                </th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody>
+                                                                                            {session.exercises.map(
+                                                                                                (exercise, exerciseIndex) => (
+                                                                                                    <ExerciseReviewRows
+                                                                                                        key={exerciseIndex}
+                                                                                                        exercise={exercise}
+                                                                                                    />
+                                                                                                ),
+                                                                                            )}
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </div>
                                                                             </div>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
+                                                                        )}
+                                                                    </Card>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </Card>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </details>
+                        )}
+                    </Card>
+
+                    <details className="rounded-lg border border-border bg-surface">
+                        <summary className="cursor-pointer list-none px-4 py-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="space-y-1">
+                                    <p className="font-medium text-foreground">Developer details</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Workbook rows, detected headers, table regions, and column mappings.
+                                    </p>
+                                </div>
+
+                                <Badge variant="neutral">Debug</Badge>
+                            </div>
+                        </summary>
+
+                        <div className="space-y-3 border-t border-border px-4 py-4">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowDebugDetails(!showDebugDetails)}
+                                >
+                                    {showDebugDetails ? "Hide debug details" : "Show debug details"}
+                                </Button>
+                                <p className="text-sm text-muted-foreground">
+                                    Keep this closed during normal imports.
+                                </p>
+                            </div>
+
+                            {showDebugDetails && (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <h2 className="text-lg font-semibold text-foreground">Parser Debug</h2>
+                                        <p className="text-sm text-muted-foreground">
+                                            These sections are still available so we can inspect how the workbook was
+                                            parsed.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <h3 className="text-base font-semibold text-foreground">Workbook Preview</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Select a sheet to preview the parsed workbook rows.
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        {workbookPreview.sheetNames.map((sheetName) => {
+                                            const isSelected = sheetName === selectedSheet?.name;
+
+                                            return (
+                                                <button
+                                                    key={sheetName}
+                                                    type="button"
+                                                    onClick={() => setSelectedSheetName(sheetName)}
+                                                    className={getButtonClassName({
+                                                        variant: isSelected ? "primary" : "secondary",
+                                                        size: "sm",
+                                                    })}
+                                                >
+                                                    {sheetName}
+                                                </button>
                                             );
                                         })}
                                     </div>
-                                ))}
-                            </div>
-                        )}
 
-                        <div className="flex flex-wrap items-center gap-3 border-t border-gray-200 pt-4">
-                            <button
-                                type="button"
-                                onClick={handleConfirmImport}
-                                disabled={hasBlockingErrors || isSavingImport}
-                                className={
-                                    hasBlockingErrors || isSavingImport
-                                        ? "rounded border border-gray-300 bg-gray-200 px-4 py-2 text-sm text-gray-500"
-                                        : "rounded border border-black bg-black px-4 py-2 text-sm text-white"
-                                }
-                            >
-                                {isSavingImport ? "Saving Import..." : "Confirm Import"}
-                            </button>
+                                    {selectedSheet !== null && (
+                                        <div className="space-y-4">
+                                            <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+                                                <table className="min-w-full border-collapse text-sm">
+                                                    <tbody>
+                                                        {selectedSheet.rows.map((row, rowIndex) => (
+                                                            <tr key={rowIndex} className="border-b border-border">
+                                                                <td className="w-12 bg-surface-muted px-3 py-2 text-right text-muted-foreground">
+                                                                    {rowIndex + 1}
+                                                                </td>
 
-                            {hasBlockingErrors && (
-                                <p className="text-sm text-red-600">
-                                    Resolve the blocking validation errors before confirming the import.
-                                </p>
+                                                                {row.map((cellValue, cellIndex) => {
+                                                                    const displayValue =
+                                                                        cellValue === null ? "-" : String(cellValue);
+                                                                    const cellTextClassName =
+                                                                        cellValue === null
+                                                                            ? "text-muted-foreground"
+                                                                            : "text-foreground";
+
+                                                                    return (
+                                                                        <td
+                                                                            key={cellIndex}
+                                                                            className={`min-w-28 px-3 py-2 align-top ${cellTextClassName}`}
+                                                                        >
+                                                                            {displayValue}
+                                                                        </td>
+                                                                    );
+                                                                })}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <DebugCardList
+                                                title="Detected Header Rows"
+                                                emptyMessage="No likely header rows were detected for this sheet."
+                                            >
+                                                {visibleHeaderRowCandidates.map((candidate, index) => (
+                                                    <Card key={index} variant="muted" className="p-3 text-sm">
+                                                        <p className="font-medium text-foreground">
+                                                            Row {candidate.rowNumber} with {candidate.confidence}%
+                                                            confidence
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Region columns: {candidate.startColumnIndex} to{" "}
+                                                            {candidate.endColumnIndex}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Header columns: {candidate.headerStartColumnIndex} to{" "}
+                                                            {candidate.endColumnIndex}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Matched fields: {candidate.matchedFields.join(", ")}
+                                                        </p>
+                                                    </Card>
+                                                ))}
+                                            </DebugCardList>
+
+                                            <DebugCardList
+                                                title="Detected Table Regions"
+                                                emptyMessage="No likely table regions were detected for this sheet."
+                                            >
+                                                {visibleTableRegions.map((tableRegion, index) => (
+                                                    <Card key={index} variant="muted" className="p-3 text-sm">
+                                                        <p className="font-medium text-foreground">
+                                                            Header row {tableRegion.headerRowNumber}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Table rows: {tableRegion.startRowNumber} to{" "}
+                                                            {tableRegion.endRowNumber}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Table columns: {tableRegion.startColumnIndex} to{" "}
+                                                            {tableRegion.endColumnIndex}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Header columns: {tableRegion.headerStartColumnIndex} to{" "}
+                                                            {tableRegion.endColumnIndex}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Row count: {tableRegion.rowCount}
+                                                        </p>
+                                                    </Card>
+                                                ))}
+                                            </DebugCardList>
+
+                                            <DebugCardList
+                                                title="Detected Column Mappings"
+                                                emptyMessage="No column mappings were detected for this sheet."
+                                            >
+                                                {visibleTableColumnMappings.map((tableColumnMapping, index) => (
+                                                    <Card key={index} variant="muted" className="p-3 text-sm">
+                                                        <p className="font-medium text-foreground">
+                                                            Header row {tableColumnMapping.headerRowNumber}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Region start column: {tableColumnMapping.startColumnIndex}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Header start column:{" "}
+                                                            {tableColumnMapping.headerStartColumnIndex}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Exercise column:{" "}
+                                                            {formatColumnIndex(tableColumnMapping.columns.exercise)}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Sets column:{" "}
+                                                            {formatColumnIndex(tableColumnMapping.columns.sets)}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Reps column:{" "}
+                                                            {formatColumnIndex(tableColumnMapping.columns.reps)}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Prescribed load column:{" "}
+                                                            {formatColumnIndex(tableColumnMapping.columns.prescribedLoad)}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Selected load column:{" "}
+                                                            {formatColumnIndex(tableColumnMapping.columns.selectedLoad)}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Prescribed RPE column:{" "}
+                                                            {formatColumnIndex(tableColumnMapping.columns.prescribedRpe)}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Actual RPE column:{" "}
+                                                            {formatColumnIndex(tableColumnMapping.columns.actualRpe)}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Coach notes column:{" "}
+                                                            {formatColumnIndex(tableColumnMapping.columns.coachNotes)}
+                                                        </p>
+                                                        <p className="text-muted-foreground">
+                                                            Athlete notes column:{" "}
+                                                            {formatColumnIndex(tableColumnMapping.columns.athleteNotes)}
+                                                        </p>
+                                                    </Card>
+                                                ))}
+                                            </DebugCardList>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
-                    </div>
-
-                    <div className="space-y-3">
-                        <button
-                            type="button"
-                            onClick={() => setShowDebugDetails(!showDebugDetails)}
-                            className="rounded border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700"
-                        >
-                            {showDebugDetails ? "Hide debug details" : "Show debug details"}
-                        </button>
-
-                        {showDebugDetails && (
-                            <div className="space-y-4 rounded border border-gray-200 bg-white p-4">
-                                <div className="space-y-2">
-                                    <h2 className="text-lg font-semibold">Parser Debug</h2>
-                                    <p className="text-sm text-gray-600">
-                                        These sections are still available so we can inspect how the workbook was
-                                        parsed.
-                                    </p>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <h3 className="text-base font-semibold">Workbook Preview</h3>
-                                    <p className="text-sm text-gray-600">
-                                        Select a sheet to preview the parsed workbook rows.
-                                    </p>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                    {workbookPreview.sheetNames.map((sheetName) => {
-                                        const isSelected = sheetName === selectedSheet?.name;
-
-                                        return (
-                                            <button
-                                                key={sheetName}
-                                                type="button"
-                                                onClick={() => setSelectedSheetName(sheetName)}
-                                                className={
-                                                    isSelected
-                                                        ? "rounded border border-black bg-black px-3 py-1.5 text-sm text-white"
-                                                        : "rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700"
-                                                }
-                                            >
-                                                {sheetName}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                {selectedSheet !== null && (
-                                    <div className="space-y-4">
-                                        <div className="overflow-x-auto rounded border border-gray-200">
-                                            <table className="min-w-full border-collapse text-sm">
-                                                <tbody>
-                                                    {selectedSheet.rows.map((row, rowIndex) => (
-                                                        <tr key={rowIndex} className="border-b border-gray-200">
-                                                            <td className="w-12 bg-gray-50 px-3 py-2 text-right text-gray-500">
-                                                                {rowIndex + 1}
-                                                            </td>
-
-                                                            {row.map((cellValue, cellIndex) => {
-                                                                const displayValue =
-                                                                    cellValue === null ? "-" : String(cellValue);
-                                                                const cellTextClassName =
-                                                                    cellValue === null
-                                                                        ? "text-gray-400"
-                                                                        : "text-gray-900";
-
-                                                                return (
-                                                                    <td
-                                                                        key={cellIndex}
-                                                                        className={`min-w-28 px-3 py-2 align-top ${cellTextClassName}`}
-                                                                    >
-                                                                        {displayValue}
-                                                                    </td>
-                                                                );
-                                                            })}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <h3 className="text-base font-semibold">Detected Header Rows</h3>
-
-                                            {visibleHeaderRowCandidates.length === 0 && (
-                                                <p className="text-sm text-gray-600">
-                                                    No likely header rows were detected for this sheet.
-                                                </p>
-                                            )}
-
-                                            {visibleHeaderRowCandidates.length > 0 && (
-                                                <div className="space-y-2">
-                                                    {visibleHeaderRowCandidates.map((candidate, index) => (
-                                                        <div
-                                                            key={index}
-                                                            className="rounded border border-gray-200 bg-gray-50 p-3 text-sm"
-                                                        >
-                                                            <p className="font-medium">
-                                                                Row {candidate.rowNumber} with {candidate.confidence}%
-                                                                confidence
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Region columns: {candidate.startColumnIndex} to{" "}
-                                                                {candidate.endColumnIndex}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Header columns: {candidate.headerStartColumnIndex} to{" "}
-                                                                {candidate.endColumnIndex}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Matched fields: {candidate.matchedFields.join(", ")}
-                                                            </p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <h3 className="text-base font-semibold">Detected Table Regions</h3>
-
-                                            {visibleTableRegions.length === 0 && (
-                                                <p className="text-sm text-gray-600">
-                                                    No likely table regions were detected for this sheet.
-                                                </p>
-                                            )}
-
-                                            {visibleTableRegions.length > 0 && (
-                                                <div className="space-y-2">
-                                                    {visibleTableRegions.map((tableRegion, index) => (
-                                                        <div
-                                                            key={index}
-                                                            className="rounded border border-gray-200 bg-gray-50 p-3 text-sm"
-                                                        >
-                                                            <p className="font-medium">
-                                                                Header row {tableRegion.headerRowNumber}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Table rows: {tableRegion.startRowNumber} to{" "}
-                                                                {tableRegion.endRowNumber}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Table columns: {tableRegion.startColumnIndex} to{" "}
-                                                                {tableRegion.endColumnIndex}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Header columns: {tableRegion.headerStartColumnIndex} to{" "}
-                                                                {tableRegion.endColumnIndex}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Row count: {tableRegion.rowCount}
-                                                            </p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <h3 className="text-base font-semibold">Detected Column Mappings</h3>
-
-                                            {visibleTableColumnMappings.length === 0 && (
-                                                <p className="text-sm text-gray-600">
-                                                    No column mappings were detected for this sheet.
-                                                </p>
-                                            )}
-
-                                            {visibleTableColumnMappings.length > 0 && (
-                                                <div className="space-y-2">
-                                                    {visibleTableColumnMappings.map((tableColumnMapping, index) => (
-                                                        <div
-                                                            key={index}
-                                                            className="rounded border border-gray-200 bg-gray-50 p-3 text-sm"
-                                                        >
-                                                            <p className="font-medium">
-                                                                Header row {tableColumnMapping.headerRowNumber}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Region start column:{" "}
-                                                                {tableColumnMapping.startColumnIndex}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Header start column:{" "}
-                                                                {tableColumnMapping.headerStartColumnIndex}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Exercise column:{" "}
-                                                                {formatColumnIndex(tableColumnMapping.columns.exercise)}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Sets column:{" "}
-                                                                {formatColumnIndex(tableColumnMapping.columns.sets)}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Reps column:{" "}
-                                                                {formatColumnIndex(tableColumnMapping.columns.reps)}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Prescribed load column:{" "}
-                                                                {formatColumnIndex(
-                                                                    tableColumnMapping.columns.prescribedLoad,
-                                                                )}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Selected load column:{" "}
-                                                                {formatColumnIndex(
-                                                                    tableColumnMapping.columns.selectedLoad,
-                                                                )}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Prescribed RPE column:{" "}
-                                                                {formatColumnIndex(
-                                                                    tableColumnMapping.columns.prescribedRpe,
-                                                                )}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Actual RPE column:{" "}
-                                                                {formatColumnIndex(
-                                                                    tableColumnMapping.columns.actualRpe,
-                                                                )}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Coach notes column:{" "}
-                                                                {formatColumnIndex(
-                                                                    tableColumnMapping.columns.coachNotes,
-                                                                )}
-                                                            </p>
-                                                            <p className="text-gray-600">
-                                                                Athlete notes column:{" "}
-                                                                {formatColumnIndex(
-                                                                    tableColumnMapping.columns.athleteNotes,
-                                                                )}
-                                                            </p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                    </details>
                 </section>
             )}
         </main>
-    );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded border border-gray-200 bg-white p-3 text-sm">
-            <p className="text-gray-600">{label}</p>
-            <p className="font-medium">{value}</p>
-        </div>
     );
 }
 
@@ -900,24 +862,30 @@ function ExerciseReviewRows({ exercise }: { exercise: NormalisedSessionPreview["
 
     return (
         <>
-            <tr className="border-b border-gray-200">
-                <td className="px-3 py-2 align-top">
+            <tr className="border-b border-border">
+                <td className="px-3 py-2 align-top text-foreground">
                     <div>
                         <p className="font-medium">{formatTextValue(exercise.exercise)}</p>
-                        <p className="text-xs text-gray-500">Row {exercise.sourceRowNumber}</p>
+                        <p className="text-xs text-muted-foreground">Row {exercise.sourceRowNumber}</p>
                     </div>
                 </td>
-                <td className="px-3 py-2 align-top">{formatTextValue(exercise.sets)}</td>
-                <td className="px-3 py-2 align-top">{formatTextValue(exercise.reps)}</td>
-                <td className="px-3 py-2 align-top">{formatTextValue(exercise.prescribedLoad)}</td>
-                <td className="px-3 py-2 align-top">{formatTextValue(exercise.prescribedRpe)}</td>
-                <td className="px-3 py-2 align-top">{formatTextValue(exercise.selectedLoad)}</td>
-                <td className="px-3 py-2 align-top">{formatTextValue(exercise.actualRpe)}</td>
+                <td className="px-3 py-2 align-top text-muted-foreground">{formatTextValue(exercise.sets)}</td>
+                <td className="px-3 py-2 align-top text-muted-foreground">{formatTextValue(exercise.reps)}</td>
+                <td className="px-3 py-2 align-top text-muted-foreground">
+                    {formatTextValue(exercise.prescribedLoad)}
+                </td>
+                <td className="px-3 py-2 align-top text-muted-foreground">
+                    {formatTextValue(exercise.prescribedRpe)}
+                </td>
+                <td className="px-3 py-2 align-top text-muted-foreground">
+                    {formatTextValue(exercise.selectedLoad)}
+                </td>
+                <td className="px-3 py-2 align-top text-muted-foreground">{formatTextValue(exercise.actualRpe)}</td>
             </tr>
 
             {hasNotes && (
-                <tr className="border-b border-gray-200 bg-gray-50">
-                    <td colSpan={7} className="px-3 py-2 text-sm text-gray-600">
+                <tr className="border-b border-border bg-surface-muted">
+                    <td colSpan={7} className="px-3 py-2 text-sm text-muted-foreground">
                         {exercise.coachNotes !== null && <p>Coach notes: {exercise.coachNotes}</p>}
                         {exercise.athleteNotes !== null && <p>Athlete notes: {exercise.athleteNotes}</p>}
                     </td>
@@ -927,42 +895,44 @@ function ExerciseReviewRows({ exercise }: { exercise: NormalisedSessionPreview["
     );
 }
 
-function buildReviewSummary(programPreview: ProgramPreview | null, validationIssues: ValidationIssue[]) {
-    let totalWeeks = 0;
-    let totalSessions = 0;
-    let totalExercises = 0;
-    let programName = "Not found";
-    let sheetName = "Not found";
+function IssueCard({ issue }: { issue: ValidationIssue }) {
+    return (
+        <Card
+            className={issue.severity === "error" ? "border-[#e6b8b2] p-4 text-sm" : "border-[#dccda8] p-4 text-sm"}
+        >
+            <p className="font-medium text-foreground">
+                {formatSeverity(issue.severity)}: {issue.message}
+            </p>
+            {(issue.exerciseName !== null || issue.sourceRowNumber !== null) && (
+                <p className="mt-1 text-muted-foreground">
+                    Exercise: {formatTextValue(issue.exerciseName)} | Source row:{" "}
+                    {formatNumberValue(issue.sourceRowNumber)}
+                </p>
+            )}
+        </Card>
+    );
+}
 
-    if (programPreview !== null) {
-        programName = programPreview.programName;
+function DebugCardList({
+    title,
+    emptyMessage,
+    children,
+}: {
+    title: string;
+    emptyMessage: string;
+    children: ReactNode;
+}) {
+    const childCount = Children.count(children);
 
-        if (programPreview.blocks.length > 0) {
-            sheetName = programPreview.blocks[0].sheetName;
-        }
+    return (
+        <div className="space-y-2">
+            <h3 className="text-base font-semibold text-foreground">{title}</h3>
 
-        for (const block of programPreview.blocks) {
-            totalWeeks += block.weeks.length;
+            {childCount === 0 && <p className="text-sm text-muted-foreground">{emptyMessage}</p>}
 
-            for (const week of block.weeks) {
-                totalSessions += week.sessions.length;
-
-                for (const session of week.sessions) {
-                    totalExercises += session.exercises.length;
-                }
-            }
-        }
-    }
-
-    return {
-        programName,
-        sheetName,
-        totalWeeks,
-        totalSessions,
-        totalExercises,
-        totalErrors: countIssuesBySeverity(validationIssues, "error"),
-        totalWarnings: countIssuesBySeverity(validationIssues, "warning"),
-    };
+            {childCount > 0 && <div className="space-y-2">{children}</div>}
+        </div>
+    );
 }
 
 function getSessionKey(session: NormalisedSessionPreview): string {
@@ -1153,14 +1123,6 @@ function formatNumberValue(value: number | null): string {
     }
 
     return String(value);
-}
-
-function formatCompactWeekday(value: string | null): string {
-    if (value === null) {
-        return "Weekday not found";
-    }
-
-    return value;
 }
 
 function formatSeverity(severity: "error" | "warning"): string {

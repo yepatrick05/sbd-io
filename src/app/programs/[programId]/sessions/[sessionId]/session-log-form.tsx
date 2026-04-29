@@ -134,7 +134,13 @@ export function SessionLogForm({
         function updateActiveExerciseFromScroll() {
             animationFrameId = 0;
 
-            const containerTop = mobileExerciseContainer.getBoundingClientRect().top;
+            const currentMobileExerciseContainer = mobileExerciseContainerRef.current;
+
+            if (currentMobileExerciseContainer === null) {
+                return;
+            }
+
+            const containerTop = currentMobileExerciseContainer.getBoundingClientRect().top;
             let closestExerciseIndex = visibleExerciseIndex;
             let closestDistance = Number.POSITIVE_INFINITY;
 
