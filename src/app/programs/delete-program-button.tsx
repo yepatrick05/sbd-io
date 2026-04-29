@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+
 interface DeleteProgramButtonProps {
     programId: string;
     deleteProgramAction: (formData: FormData) => Promise<{
@@ -49,15 +51,11 @@ export function DeleteProgramButton({
             }}
             className="space-y-2"
         >
-            <button
-                type="submit"
-                disabled={isDeleting}
-                className="rounded border border-red-300 bg-white px-3 py-2 text-sm text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <Button type="submit" variant="danger" size="sm" disabled={isDeleting}>
                 {isDeleting ? "Deleting..." : "Delete"}
-            </button>
+            </Button>
 
-            {errorMessage !== null && <p className="text-sm text-red-700">{errorMessage}</p>}
+            {errorMessage !== null && <p className="text-sm text-danger-foreground">{errorMessage}</p>}
         </form>
     );
 }

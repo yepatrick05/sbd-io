@@ -1,26 +1,82 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f4ef;
+  --foreground: #111111;
+  --surface: #fffaf2;
+  --surface-muted: #f1ebe2;
+  --muted-foreground: #6f6a63;
+  --border: #d8d1c7;
+  --accent: #e6001f;
+  --accent-foreground: #fffaf8;
+  --success-surface: #edf3eb;
+  --success-foreground: #35513a;
+  --warning-surface: #f5ebd8;
+  --warning-foreground: #765b23;
+  --danger-surface: #f7e5e2;
+  --danger-foreground: #8a2f2a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success-surface: var(--success-surface);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-foreground: var(--danger-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--background);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 18%, white);
+}
+
+a,
+button,
+input,
+textarea,
+select {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, white);
+  outline-offset: 2px;
+}
+
+input,
+textarea,
+select {
+  border-color: var(--border);
+}
+
+main {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
 }

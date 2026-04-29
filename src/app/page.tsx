@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { getButtonClassName } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -8,71 +11,70 @@ export default async function Home() {
     const currentProgram = await readCurrentProgram();
 
     return (
-        <main className="space-y-6 p-6">
-            <div className="space-y-2">
-                <h1 className="text-2xl font-semibold">sbd.io</h1>
-                <p className="max-w-xl text-sm text-gray-600">
+        <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-8">
+            <div className="space-y-3">
+                <Badge variant="neutral">Spreadsheet-first powerlifting log</Badge>
+                <h1 className="max-w-2xl text-3xl font-semibold tracking-[-0.03em] text-foreground">
+                    Calm training workflow for coach-built programs.
+                </h1>
+                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                     A simple training companion that turns coach spreadsheets into a cleaner session-by-session workflow
                     for lifters.
                 </p>
             </div>
 
             <div className="flex flex-wrap gap-3 text-sm">
-                <Link href="/upload" className="rounded border border-black bg-black px-4 py-2 text-white">
+                <Link href="/upload" className={getButtonClassName({ variant: "primary" })}>
                     Upload Program
                 </Link>
-                <Link href="/programs" className="rounded border border-gray-300 bg-white px-4 py-2 text-gray-700">
+                <Link href="/programs" className={getButtonClassName({ variant: "secondary" })}>
                     View All Programs
                 </Link>
             </div>
 
             {currentProgram === null && (
-                <div className="space-y-2 rounded border border-gray-200 bg-white p-4 text-sm text-gray-600">
-                    <p className="font-medium text-gray-900">No saved programs yet</p>
+                <Card className="space-y-2 p-5 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">No saved programs yet</p>
                     <p>Upload your first spreadsheet to start turning a training block into trackable sessions.</p>
-                </div>
+                </Card>
             )}
 
             {currentProgram !== null && (
-                <section className="space-y-4 rounded border border-gray-200 bg-white p-4">
+                <Card className="space-y-5 p-5">
                     <div className="space-y-1">
-                        <p className="text-sm text-gray-600">Current Program</p>
-                        <h2 className="text-xl font-semibold">{currentProgram.name}</h2>
-                        <p className="text-sm text-gray-600">
+                        <Badge variant="accent">Current Program</Badge>
+                        <h2 className="pt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">
+                            {currentProgram.name}
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
                             Latest block: {currentProgram.latestBlockName}
                         </p>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-                            <p className="text-gray-600">Progress</p>
-                            <p className="font-medium">
+                        <Card variant="muted" className="p-4 text-sm">
+                            <p className="text-muted-foreground">Progress</p>
+                            <p className="font-medium text-foreground">
                                 {currentProgram.completedSessionCount} / {currentProgram.totalSessionCount} sessions
                                 completed
                             </p>
-                        </div>
+                        </Card>
 
-                        <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-                            <p className="text-gray-600">Created</p>
-                            <p className="font-medium">{formatDate(currentProgram.createdAt)}</p>
-                        </div>
+                        <Card variant="muted" className="p-4 text-sm">
+                            <p className="text-muted-foreground">Created</p>
+                            <p className="font-medium text-foreground">{formatDate(currentProgram.createdAt)}</p>
+                        </Card>
                     </div>
 
                     <div className="flex flex-wrap gap-3 text-sm">
-                        <Link
-                            href={`/programs/${currentProgram.id}/next`}
-                            className="rounded border border-black bg-black px-4 py-2 text-white"
-                        >
+                        <Link href={`/programs/${currentProgram.id}/next`} className={getButtonClassName({ variant: "primary" })}>
                             Continue Training
                         </Link>
-                        <Link
-                            href={`/programs/${currentProgram.id}`}
-                            className="rounded border border-gray-300 bg-white px-4 py-2 text-gray-700"
-                        >
+                        <Link href={`/programs/${currentProgram.id}`} className={getButtonClassName({ variant: "secondary" })}>
                             View Program
                         </Link>
                     </div>
-                </section>
+                </Card>
             )}
         </main>
     );
