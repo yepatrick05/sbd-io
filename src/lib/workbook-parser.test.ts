@@ -4,7 +4,7 @@ import path from "node:path";
 import ExcelJS from "exceljs";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { parseWorkbook } from "./workbook-parser";
+import { computePercentageBackoffDisplayLoad, parseWorkbook } from "./workbook-parser";
 
 async function loadWorkbookPreview(fileName: string) {
     const sampleWorkbookPath = path.join(process.cwd(), "samples", fileName);
@@ -246,3 +246,177 @@ describe("workbook parser with no recognisable workout tables", () => {
         });
     });
 });
+
+describe("load normalisation and percentage backoff helpers", () => {
+    it("copies selectedLoad into prescribedLoad when prescribedLoad is empty", async () => {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet("block 1");
+
+        sheet.addRow([
+            "Week 1",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]);
+        sheet.addRow([
+            "Day 1 - Wednesday",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]);
+        sheet.addRow([
+            "Movement",
+            "Sets",
+            "Reps",
+            "Projected Load",
+            "RPE",
+            "Coach Notes/Cues",
+            "Selected Load",
+            "Athlete Notes",
+        ]);
+        sheet.addRow([
+            "Comp Squat",
+            "1",
+            "5",
+            "",
+            "",
+            "",
+            "155",
+            "",
+        ]);
+
+        const workbookBuffer = Buffer.from(await workbook.xlsx.writeBuffer());
+        const workbookPreview = await parseWorkbook("load-capped.xlsx", workbookBuffer);
+        const exerciseRow = workbookPreview.exerciseRows[0];
+
+        expect(exerciseRow).toMatchObject({
+            prescribedLoad: "155",
+            selectedLoad: "155",
+        });
+    });
+
+    it("preserves percentage prescribedLoad when selectedLoad also exists", async () => {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet("block 1");
+
+        sheet.addRow(["Week 1"]);
+        sheet.addRow(["Day 1 - Wednesday"]);
+        sheet.addRow([
+            "Movement",
+            "Sets",
+            "Reps",
+            "Projected Load",
+            "RPE",
+            "Coach Notes/Cues",
+            "Selected Load",
+            "Athlete Notes",
+        ]);
+        sheet.addRow([
+            "Comp Deadlift",
+            "1",
+            "5",
+            "-10%",
+            "",
+            "",
+            "72",
+            "",
+        ]);
+
+        const workbookBuffer = Buffer.from(await workbook.xlsx.writeBuffer());
+        const workbookPreview = await parseWorkbook("percentage-load.xlsx", workbookBuffer);
+        const exerciseRow = workbookPreview.exerciseRows[0];
+
+        expect(exerciseRow).toMatchObject({
+            prescribedLoad: "-10%",
+            selectedLoad: "72",
+        });
+    });
+
+    it("computes a percentage backoff from the previous selectedLoad when available", () => {
+        const exerciseRows = [
+            buildExerciseRow({
+                exercise: "Competition Deadlift",
+                prescribedLoad: "100",
+                selectedLoad: "102.5",
+            }),
+            buildExerciseRow({
+                exercise: "Competition Deadlift",
+                prescribedLoad: "-12.5%",
+            }),
+        ];
+
+        const computedDisplayLoad = computePercentageBackoffDisplayLoad(exerciseRows, exerciseRows[1]);
+
+        expect(computedDisplayLoad).toBeCloseTo(89.7, 1);
+    });
+
+    it("falls back to the previous prescribedLoad when selectedLoad is missing", () => {
+        const exerciseRows = [
+            buildExerciseRow({
+                exercise: "Competition Bench",
+                prescribedLoad: "80",
+                selectedLoad: null,
+            }),
+            buildExerciseRow({
+                exercise: "Competition Bench",
+                prescribedLoad: "-10%",
+            }),
+        ];
+
+        const computedDisplayLoad = computePercentageBackoffDisplayLoad(exerciseRows, exerciseRows[1]);
+
+        expect(computedDisplayLoad).toBe(72);
+    });
+
+    it("does not compute a percentage backoff when no previous concrete load exists", () => {
+        const exerciseRows = [
+            buildExerciseRow({
+                exercise: "Competition Squat",
+                prescribedLoad: "-10%",
+            }),
+            buildExerciseRow({
+                exercise: "Competition Squat",
+                prescribedLoad: "-12.5%",
+            }),
+        ];
+
+        const computedDisplayLoad = computePercentageBackoffDisplayLoad(exerciseRows, exerciseRows[1]);
+
+        expect(computedDisplayLoad).toBeNull();
+    });
+});
+
+function buildExerciseRow({
+    exercise,
+    prescribedLoad = null,
+    selectedLoad = null,
+}: {
+    exercise: string;
+    prescribedLoad?: string | null;
+    selectedLoad?: string | null;
+}) {
+    return {
+        sheetName: "block 1",
+        headerRowNumber: 3,
+        startColumnIndex: 0,
+        headerStartColumnIndex: 0,
+        sourceRowNumber: 4,
+        exercise,
+        sets: "1",
+        reps: "5",
+        prescribedLoad,
+        prescribedRpe: null,
+        coachNotes: null,
+        selectedLoad,
+        actualRpe: null,
+        athleteNotes: null,
+    };
+}

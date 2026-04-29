@@ -85,6 +85,55 @@ export async function parseWorkbook(fileName: string, workbookData: Buffer): Pro
     return preview;
 }
 
+export function computePercentageBackoffDisplayLoad(
+    exerciseRows: ExerciseRow[],
+    targetExerciseRow: ExerciseRow,
+): number | null {
+    const prescribedLoad = targetExerciseRow.prescribedLoad;
+
+    if (prescribedLoad === null) {
+        return null;
+    }
+
+    const percentageDrop = parsePercentageDrop(prescribedLoad);
+
+    if (percentageDrop === null) {
+        return null;
+    }
+
+    const targetExerciseRowIndex = exerciseRows.findIndex((exerciseRow) => {
+        return exerciseRow === targetExerciseRow;
+    });
+
+    if (targetExerciseRowIndex === -1) {
+        return null;
+    }
+
+    const previousSelectedLoad = findPreviousConcreteLoadValue(
+        exerciseRows,
+        targetExerciseRow.exercise,
+        targetExerciseRowIndex,
+        "selectedLoad",
+    );
+
+    if (previousSelectedLoad !== null) {
+        return roundDisplayLoadValue(previousSelectedLoad * (1 + percentageDrop / 100));
+    }
+
+    const previousPrescribedLoad = findPreviousConcreteLoadValue(
+        exerciseRows,
+        targetExerciseRow.exercise,
+        targetExerciseRowIndex,
+        "prescribedLoad",
+    );
+
+    if (previousPrescribedLoad !== null) {
+        return roundDisplayLoadValue(previousPrescribedLoad * (1 + percentageDrop / 100));
+    }
+
+    return null;
+}
+
 function detectHeaderRows(sheets: SheetPreview[]): HeaderRowCandidate[] {
     const headerRowCandidates: HeaderRowCandidate[] = [];
 
@@ -468,7 +517,7 @@ function extractExerciseRows(
                 continue;
             }
 
-            exerciseRows.push({
+            const extractedExerciseRow: ExerciseRow = {
                 sheetName: tableRegion.sheetName,
                 headerRowNumber: tableRegion.headerRowNumber,
                 startColumnIndex: tableRegion.startColumnIndex,
@@ -483,11 +532,28 @@ function extractExerciseRows(
                 selectedLoad: getMappedCellValue(rowValues, tableRegion, tableColumnMapping.columns.selectedLoad),
                 actualRpe: getMappedCellValue(rowValues, tableRegion, tableColumnMapping.columns.actualRpe),
                 athleteNotes: getMappedCellValue(rowValues, tableRegion, tableColumnMapping.columns.athleteNotes),
-            });
+            };
+
+            exerciseRows.push(normaliseExerciseRowLoads(extractedExerciseRow));
         }
     }
 
     return exerciseRows;
+}
+
+function normaliseExerciseRowLoads(exerciseRow: ExerciseRow): ExerciseRow {
+    if (exerciseRow.prescribedLoad !== null) {
+        return exerciseRow;
+    }
+
+    if (exerciseRow.selectedLoad === null) {
+        return exerciseRow;
+    }
+
+    return {
+        ...exerciseRow,
+        prescribedLoad: exerciseRow.selectedLoad,
+    };
 }
 
 function detectTableContexts(sheets: SheetPreview[], tableRegions: TableRegion[]): TableContext[] {
@@ -1046,6 +1112,72 @@ function getMappedCellValue(
     }
 
     return stringValue;
+}
+
+function findPreviousConcreteLoadValue(
+    exerciseRows: ExerciseRow[],
+    exerciseName: string | null,
+    targetExerciseRowIndex: number,
+    fieldName: "prescribedLoad" | "selectedLoad",
+): number | null {
+    if (exerciseName === null) {
+        return null;
+    }
+
+    for (let exerciseRowIndex = targetExerciseRowIndex - 1; exerciseRowIndex >= 0; exerciseRowIndex -= 1) {
+        const exerciseRow = exerciseRows[exerciseRowIndex];
+
+        if (exerciseRow.exercise !== exerciseName) {
+            continue;
+        }
+
+        const fieldValue = exerciseRow[fieldName];
+        const concreteLoadValue = parseConcreteLoadValue(fieldValue);
+
+        if (concreteLoadValue !== null) {
+            return concreteLoadValue;
+        }
+    }
+
+    return null;
+}
+
+function parseConcreteLoadValue(value: string | null): number | null {
+    if (value === null) {
+        return null;
+    }
+
+    if (parsePercentageDrop(value) !== null) {
+        return null;
+    }
+
+    const normalisedValue = value.replace(/,/g, "").trim();
+
+    if (normalisedValue === "") {
+        return null;
+    }
+
+    const parsedValue = Number(normalisedValue);
+
+    if (!Number.isFinite(parsedValue)) {
+        return null;
+    }
+
+    return parsedValue;
+}
+
+function parsePercentageDrop(value: string): number | null {
+    const percentageMatch = value.trim().match(/^(-?\d+(?:\.\d+)?)%$/);
+
+    if (percentageMatch === null) {
+        return null;
+    }
+
+    return Number(percentageMatch[1]);
+}
+
+function roundDisplayLoadValue(value: number): number {
+    return Math.round(value * 10) / 10;
 }
 
 function serialiseCell(cell: Cell): PreviewCell {
