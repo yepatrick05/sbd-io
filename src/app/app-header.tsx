@@ -11,19 +11,19 @@ export function AppHeader() {
                     <Link href="/" className="text-lg font-semibold tracking-[-0.02em] text-foreground">
                         sbd.io
                     </Link>
-                    <Badge variant="accent" className="hidden sm:inline-flex">
+                    <Badge variant="neutral" className="hidden sm:inline-flex">
                         Training Utility
                     </Badge>
                 </div>
 
                 <nav className="flex flex-wrap items-center gap-2">
-                    <Link href="/" className={getButtonClassName({ variant: "quiet", size: "sm" })}>
+                    <Link href="/" className={getButtonClassName({ variant: "ghost", size: "sm" })}>
                         Dashboard
                     </Link>
-                    <Link href="/upload" className={getButtonClassName({ variant: "quiet", size: "sm" })}>
+                    <Link href="/upload" className={getButtonClassName({ variant: "ghost", size: "sm" })}>
                         Upload
                     </Link>
-                    <Link href="/programs" className={getButtonClassName({ variant: "quiet", size: "sm" })}>
+                    <Link href="/programs" className={getButtonClassName({ variant: "ghost", size: "sm" })}>
                         Programs
                     </Link>
                 </nav>

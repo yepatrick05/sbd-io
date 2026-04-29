@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes } from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-type ButtonVariant = "primary" | "secondary" | "quiet" | "danger";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonSize = "default" | "sm";
 
 interface ButtonClassNameOptions {
@@ -59,7 +59,7 @@ export function getButtonClassName({
                 "border-accent bg-accent text-accent-foreground hover:bg-[#cc001b]": variant === "primary",
                 "border-border bg-surface text-foreground hover:bg-surface-muted": variant === "secondary",
                 "border-transparent bg-transparent text-muted-foreground hover:bg-surface-muted hover:text-foreground":
-                    variant === "quiet",
+                    variant === "ghost",
                 "border-[#d8b4ad] bg-surface text-[#7d2d28] hover:bg-[#f5ede7]": variant === "danger",
             },
             className,

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { Button, getButtonClassName } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import { SessionLogForm, type SaveLogsState } from "./session-log-form";
 
@@ -236,111 +238,79 @@ export default async function SessionDetailPage({
     const warningMessage = getMissingActualRpeWarningMessage(resolvedSearchParams.warning, resolvedSearchParams.count);
 
     return (
-        <main className="space-y-6 p-6">
-            <div className="space-y-2">
-                <div className="flex flex-wrap gap-3 text-sm text-gray-600">
-                    <Link href={`/programs/${programId}`} className="underline" data-warn-unsaved="true">
+        <main className="space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+            <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                    <Link
+                        href={`/programs/${programId}`}
+                        className={getButtonClassName({ variant: "ghost", size: "sm" })}
+                        data-warn-unsaved="true"
+                    >
                         Back to program
                     </Link>
-                    <Link href={`/programs/${programId}/next`} className="underline" data-warn-unsaved="true">
+                    <Link
+                        href={`/programs/${programId}/next`}
+                        className={getButtonClassName({ variant: "ghost", size: "sm" })}
+                        data-warn-unsaved="true"
+                    >
                         Continue Training
                     </Link>
                     {sessionNavigation.previousSessionId !== null ? (
                         <Link
                             href={`/programs/${programId}/sessions/${sessionNavigation.previousSessionId}`}
-                            className="underline"
+                            className={getButtonClassName({ variant: "ghost", size: "sm" })}
                             data-warn-unsaved="true"
                         >
                             Previous Session
                         </Link>
                     ) : (
-                        <span className="text-gray-400">Previous Session</span>
+                        <span className="px-3 py-2 text-sm text-muted-foreground">Previous Session</span>
                     )}
                     {sessionNavigation.nextSessionId !== null ? (
                         <Link
                             href={`/programs/${programId}/sessions/${sessionNavigation.nextSessionId}`}
-                            className="underline"
+                            className={getButtonClassName({ variant: "ghost", size: "sm" })}
                             data-warn-unsaved="true"
                         >
                             Next Session
                         </Link>
                     ) : (
-                        <span className="text-gray-400">Next Session</span>
+                        <span className="px-3 py-2 text-sm text-muted-foreground">Next Session</span>
                     )}
                 </div>
-                <h1 className="text-2xl font-semibold">{session.week.block.program.name}</h1>
-                <p className="text-sm text-gray-600">Session details</p>
+
+                <h1 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+                    Exercise Logs
+                </h1>
             </div>
 
             {statusMessage !== null && (
-                <div className="rounded border border-green-300 bg-green-50 p-3 text-sm text-gray-700">
+                <Card className="border-[#cad9c7] bg-success-surface p-3 text-sm text-success-foreground">
                     {statusMessage}
-                </div>
+                </Card>
             )}
 
             {warningMessage !== null && session.completedAt === null && (
-                <div className="space-y-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-gray-700">
+                <Card className="space-y-3 border-[#dccda8] bg-warning-surface p-3 text-sm text-warning-foreground">
                     <p>{warningMessage}</p>
 
                     <form action={markSessionComplete}>
                         <input type="hidden" name="programId" value={programId} />
                         <input type="hidden" name="sessionId" value={session.id} />
                         <input type="hidden" name="confirmMissingActualRpe" value="true" />
-                        <button
-                            type="submit"
-                            className="rounded border border-amber-400 bg-white px-4 py-2 text-sm text-gray-700"
-                        >
+                        <Button type="submit" variant="secondary">
                             Complete Anyway
-                        </button>
+                        </Button>
                     </form>
-                </div>
+                </Card>
             )}
 
-            <section className="space-y-4 rounded border border-gray-200 bg-white p-4">
-                <div className="space-y-1">
-                    <p className="text-sm text-gray-600">Block</p>
-                    <p className="font-medium">{session.week.block.name}</p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-                        <p className="text-gray-600">Week</p>
-                        <p className="font-medium">{session.week.weekNumber}</p>
-                    </div>
-
-                    <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-                        <p className="text-gray-600">Session Order</p>
-                        <p className="font-medium">{session.sessionOrder}</p>
-                    </div>
-
-                    <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-                        <p className="text-gray-600">Label</p>
-                        <p className="font-medium">{formatNullableText(session.label)}</p>
-                    </div>
-
-                    <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-                        <p className="text-gray-600">Intended Weekday</p>
-                        <p className="font-medium">{formatNullableText(session.intendedWeekday)}</p>
-                    </div>
-
-                    <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-                        <p className="text-gray-600">Completion Status</p>
-                        <p className="font-medium">{session.completedAt === null ? "Incomplete" : "Completed"}</p>
-                    </div>
-
-                    <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm">
-                        <p className="text-gray-600">Exercise Count</p>
-                        <p className="font-medium">{session.exercises.length}</p>
-                    </div>
-                </div>
-
+            <section className="space-y-4">
                 <div className="space-y-3">
-                    <h2 className="text-lg font-semibold">Exercise Logs</h2>
-
                     {session.exercises.length === 0 && (
-                        <div className="rounded border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        <Card variant="muted" className="p-4 text-sm text-muted-foreground">
                             No exercises were found for this session.
-                        </div>
+                        </Card>
                     )}
 
                     {session.exercises.length > 0 && (
@@ -348,6 +318,11 @@ export default async function SessionDetailPage({
                             exercises={session.exercises}
                             programId={programId}
                             sessionId={session.id}
+                            weekNumber={session.week.weekNumber}
+                            sessionOrder={session.sessionOrder}
+                            sessionLabel={session.label}
+                            intendedWeekday={session.intendedWeekday}
+                            completedAt={session.completedAt}
                             saveLogsAction={saveLogs}
                             markSessionCompleteAction={session.completedAt === null ? markSessionComplete : undefined}
                         />
@@ -358,12 +333,9 @@ export default async function SessionDetailPage({
                     <form action={markSessionComplete}>
                         <input type="hidden" name="programId" value={programId} />
                         <input type="hidden" name="sessionId" value={session.id} />
-                        <button
-                            type="submit"
-                            className="rounded border border-black bg-black px-4 py-2 text-sm text-white"
-                        >
+                        <Button type="submit" variant="primary">
                             Mark Complete
-                        </button>
+                        </Button>
                     </form>
                 )}
 
@@ -371,12 +343,9 @@ export default async function SessionDetailPage({
                     <form action={reopenSession}>
                         <input type="hidden" name="programId" value={programId} />
                         <input type="hidden" name="sessionId" value={session.id} />
-                        <button
-                            type="submit"
-                            className="rounded border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700"
-                        >
+                        <Button type="submit" variant="secondary">
                             Reopen Session
-                        </button>
+                        </Button>
                     </form>
                 )}
             </section>
@@ -409,14 +378,6 @@ function getSessionNavigation(
         previousSessionId: previousSession?.id ?? null,
         nextSessionId: nextSession?.id ?? null,
     };
-}
-
-function formatNullableText(value: string | null): string {
-    if (value === null) {
-        return "Not found";
-    }
-
-    return value;
 }
 
 function getOptionalFormValue(value: FormDataEntryValue | null): string | null {

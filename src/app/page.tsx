@@ -42,7 +42,7 @@ export default async function Home() {
             {currentProgram !== null && (
                 <Card className="space-y-5 p-5">
                     <div className="space-y-1">
-                        <Badge variant="accent">Current Program</Badge>
+                        <Badge variant="current">Current Program</Badge>
                         <h2 className="pt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">
                             {currentProgram.name}
                         </h2>

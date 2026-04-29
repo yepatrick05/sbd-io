@@ -9,8 +9,12 @@
   --border: #d8d1c7;
   --accent: #e6001f;
   --accent-foreground: #fffaf8;
+  --current-surface: #f8e4e8;
+  --current-foreground: #8e1223;
   --success-surface: #edf3eb;
   --success-foreground: #35513a;
+  --upcoming-surface: #ece6dd;
+  --upcoming-foreground: #5d564e;
   --warning-surface: #f5ebd8;
   --warning-foreground: #765b23;
   --danger-surface: #f7e5e2;
@@ -26,8 +30,12 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-current-surface: var(--current-surface);
+  --color-current-foreground: var(--current-foreground);
   --color-success-surface: var(--success-surface);
   --color-success-foreground: var(--success-foreground);
+  --color-upcoming-surface: var(--upcoming-surface);
+  --color-upcoming-foreground: var(--upcoming-foreground);
   --color-warning-surface: var(--warning-surface);
   --color-warning-foreground: var(--warning-foreground);
   --color-danger-surface: var(--danger-surface);
@@ -44,6 +52,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  line-height: 1.5;
   text-rendering: optimizeLegibility;
 }
 

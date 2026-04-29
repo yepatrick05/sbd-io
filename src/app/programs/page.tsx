@@ -125,7 +125,7 @@ export default async function ProgramsPage() {
                                         </p>
 
                                         {isCurrentProgram && (
-                                            <Badge variant="accent">
+                                            <Badge variant="current">
                                                 Current Program
                                             </Badge>
                                         )}

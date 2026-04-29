@@ -1,6 +1,11 @@
 "use client";
 
+import { clsx } from "clsx";
 import { useEffect, useRef, useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export interface SaveLogsState {
     status: "idle" | "success" | "error";
@@ -26,6 +31,11 @@ interface SessionLogFormProps {
     }[];
     programId: string;
     sessionId: string;
+    weekNumber: number;
+    sessionOrder: number;
+    sessionLabel: string | null;
+    intendedWeekday: string | null;
+    completedAt: Date | null;
     saveLogsAction: (formData: FormData) => Promise<SaveLogsState>;
     markSessionCompleteAction?: (formData: FormData) => void | Promise<void>;
 }
@@ -34,14 +44,31 @@ export function SessionLogForm({
     exercises,
     programId,
     sessionId,
+    weekNumber,
+    sessionOrder,
+    sessionLabel,
+    intendedWeekday,
+    completedAt,
     saveLogsAction,
     markSessionCompleteAction,
 }: SessionLogFormProps) {
     const formRef = useRef<HTMLFormElement | null>(null);
+    const mobileExerciseContainerRef = useRef<HTMLDivElement | null>(null);
+    const exerciseCardRefs = useRef<Array<HTMLDivElement | null>>([]);
     const [logStatus, setLogStatus] = useState<LogStatus>("clean");
     const [errorMessage, setErrorMessage] = useState("");
     const [completionWarningMessage, setCompletionWarningMessage] = useState<string | null>(null);
+    const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
     const hasUnsavedChanges = logStatus === "dirty";
+    const lastExerciseIndex = Math.max(exercises.length - 1, 0);
+    const visibleExerciseIndex = Math.min(activeExerciseIndex, lastExerciseIndex);
+    const sessionStatusLabel = getCompletionStatusLabel(completedAt);
+    const sessionStatusVariant = getCompletionStatusVariant(completedAt);
+    const sessionDisplayLabel = buildSessionDisplayLabel({
+        sessionOrder,
+        sessionLabel,
+        intendedWeekday,
+    });
 
     useEffect(() => {
         function handleBeforeUnload(event: BeforeUnloadEvent) {
@@ -93,20 +120,75 @@ export function SessionLogForm({
         };
     }, [hasUnsavedChanges]);
 
+    useEffect(() => {
+        const mobileExerciseContainer = mobileExerciseContainerRef.current;
+
+        if (mobileExerciseContainer === null) {
+            return;
+        }
+
+        let animationFrameId = 0;
+
+        function updateActiveExerciseFromScroll() {
+            animationFrameId = 0;
+
+            const containerTop = mobileExerciseContainer.getBoundingClientRect().top;
+            let closestExerciseIndex = visibleExerciseIndex;
+            let closestDistance = Number.POSITIVE_INFINITY;
+
+            for (let exerciseIndex = 0; exerciseIndex < exerciseCardRefs.current.length; exerciseIndex += 1) {
+                const exerciseCard = exerciseCardRefs.current[exerciseIndex];
+
+                if (exerciseCard === null) {
+                    continue;
+                }
+
+                const distanceFromTop = Math.abs(exerciseCard.getBoundingClientRect().top - containerTop);
+
+                if (distanceFromTop < closestDistance) {
+                    closestDistance = distanceFromTop;
+                    closestExerciseIndex = exerciseIndex;
+                }
+            }
+
+            if (closestExerciseIndex !== visibleExerciseIndex) {
+                setActiveExerciseIndex(closestExerciseIndex);
+            }
+        }
+
+        function handleScroll() {
+            if (animationFrameId !== 0) {
+                return;
+            }
+
+            animationFrameId = window.requestAnimationFrame(updateActiveExerciseFromScroll);
+        }
+
+        mobileExerciseContainer.addEventListener("scroll", handleScroll);
+
+        return () => {
+            mobileExerciseContainer.removeEventListener("scroll", handleScroll);
+
+            if (animationFrameId !== 0) {
+                window.cancelAnimationFrame(animationFrameId);
+            }
+        };
+    }, [visibleExerciseIndex]);
+
     let statusMessage = "Logs saved";
-    let statusClassName = "rounded border border-green-300 bg-green-50 p-3 text-sm text-gray-700";
+    let statusClassName = "rounded-lg border border-[#cad9c7] bg-success-surface p-3 text-sm text-success-foreground";
 
     if (logStatus === "saving") {
         statusMessage = "Saving...";
-        statusClassName = "rounded border border-blue-300 bg-blue-50 p-3 text-sm text-gray-700";
+        statusClassName = "rounded-lg border border-border bg-surface-muted p-3 text-sm text-foreground";
     } else if (logStatus === "dirty") {
         statusMessage = "Unsaved changes";
-        statusClassName = "rounded border border-amber-300 bg-amber-50 p-3 text-sm text-gray-700";
+        statusClassName = "rounded-lg border border-[#dccda8] bg-warning-surface p-3 text-sm text-warning-foreground";
     } else if (logStatus === "saved") {
         statusMessage = "Logs saved successfully";
     } else if (logStatus === "error") {
         statusMessage = errorMessage;
-        statusClassName = "rounded border border-red-300 bg-red-50 p-3 text-sm text-gray-700";
+        statusClassName = "rounded-lg border border-[#e6b8b2] bg-danger-surface p-3 text-sm text-danger-foreground";
     }
 
     return (
@@ -143,101 +225,146 @@ export function SessionLogForm({
 
                 setCompletionWarningMessage(null);
             }}
-            className="space-y-4 pb-24"
+            className="space-y-4 pb-28"
         >
             <input type="hidden" name="programId" value={programId} />
             <input type="hidden" name="sessionId" value={sessionId} />
 
-            <div className={statusClassName}>{statusMessage}</div>
-
-            {exercises.map((exercise) => {
-                const currentLog = exercise.logs[0] ?? null;
-                const setsAndReps = formatSetsAndReps(exercise.sets, exercise.reps);
-
-                return (
-                    <div key={exercise.id} className="space-y-3 rounded border border-gray-200 bg-white p-4 text-sm">
-                        <div className="space-y-2">
-                            <div className="flex flex-wrap items-start justify-between gap-2">
-                                <p className="text-base font-semibold text-gray-900">{exercise.rawExerciseName}</p>
-
-                                <span className="rounded border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700">
-                                    {setsAndReps}
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 rounded border border-gray-200 bg-gray-50 p-3">
-                                <div>
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Prescribed Load</p>
-                                    <p className="font-medium text-gray-900">
-                                        {formatNullableText(exercise.prescribedLoad)}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs uppercase tracking-wide text-gray-500">Prescribed RPE</p>
-                                    <p className="font-medium text-gray-900">
-                                        {formatNullableText(exercise.prescribedRpe)}
-                                    </p>
-                                </div>
-                            </div>
+            <Card className="space-y-3 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                            <span>Week {weekNumber}</span>
+                            <span aria-hidden="true">•</span>
+                            <span>{sessionDisplayLabel}</span>
                         </div>
-
-                        {exercise.coachNotes !== null && (
-                            <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-                                <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">Coach Notes</p>
-                                <p>{exercise.coachNotes}</p>
-                            </div>
-                        )}
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <label className="space-y-1">
-                                <span className="text-gray-700">Selected Load</span>
-                                <input
-                                    type="text"
-                                    name={`selectedLoad-${exercise.id}`}
-                                    defaultValue={currentLog?.selectedLoad ?? ""}
-                                    className="w-full rounded border border-gray-300 bg-white px-3 py-3 text-base"
-                                />
-                            </label>
-
-                            <label className="space-y-1">
-                                <span className="text-gray-700">Actual RPE</span>
-                                <input
-                                    type="text"
-                                    name={`actualRpe-${exercise.id}`}
-                                    defaultValue={currentLog?.actualRpe ?? ""}
-                                    className="w-full rounded border border-gray-300 bg-white px-3 py-3 text-base"
-                                />
-                            </label>
-                        </div>
-
-                        <label className="space-y-1">
-                            <span className="text-gray-600">Athlete Notes</span>
-                            <textarea
-                                name={`athleteNotes-${exercise.id}`}
-                                defaultValue={currentLog?.athleteNotes ?? ""}
-                                rows={2}
-                                className="w-full rounded border border-gray-300 bg-white px-3 py-3 text-base"
-                            />
-                        </label>
                     </div>
-                );
-            })}
 
-            <div className="sticky bottom-0 -mx-4 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Badge variant={sessionStatusVariant}>{sessionStatusLabel}</Badge>
+                        {exercises.length > 0 && (
+                            <Badge variant="neutral">
+                                Exercise {visibleExerciseIndex + 1} of {exercises.length}
+                            </Badge>
+                        )}
+                    </div>
+                </div>
+            </Card>
+
+            <div
+                ref={mobileExerciseContainerRef}
+                className="space-y-4 md:space-y-4 md:overflow-visible md:snap-none md:pr-0 md:[scrollbar-width:auto] max-md:max-h-[calc(100svh-25rem)] max-md:overflow-y-auto max-md:snap-y max-md:snap-mandatory max-md:overscroll-contain max-md:pr-1 max-md:[scrollbar-width:none]"
+            >
+                {exercises.map((exercise, exerciseIndex) => {
+                    const currentLog = exercise.logs[0] ?? null;
+                    const setsAndReps = formatSetsAndReps(exercise.sets, exercise.reps);
+                    const exerciseIsActive = exerciseIndex === visibleExerciseIndex;
+
+                    return (
+                        <Card
+                            key={exercise.id}
+                            ref={(exerciseCardElement) => {
+                                exerciseCardRefs.current[exerciseIndex] = exerciseCardElement;
+                            }}
+                            className={clsx(
+                                "space-y-4 p-4 text-sm",
+                                "max-md:min-h-[calc(100svh-27rem)] max-md:snap-start",
+                                exerciseIsActive
+                                    ? "border-accent"
+                                    : "max-md:border-border md:border-border",
+                            )}
+                        >
+                            <div className="space-y-3">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="space-y-2">
+                                        <p className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+                                            {exercise.rawExerciseName}
+                                        </p>
+                                    </div>
+
+                                    <Badge variant="neutral">{setsAndReps}</Badge>
+                                </div>
+
+                                <Card variant="muted" className="grid grid-cols-2 gap-3 p-3">
+                                    <div>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                            Prescribed Load
+                                        </p>
+                                        <p className="font-medium text-foreground">
+                                            {formatNullableText(exercise.prescribedLoad)}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                            Prescribed RPE
+                                        </p>
+                                        <p className="font-medium text-foreground">
+                                            {formatNullableText(exercise.prescribedRpe)}
+                                        </p>
+                                    </div>
+                                </Card>
+                            </div>
+
+                            {exercise.coachNotes !== null && (
+                                <Card variant="muted" className="p-3 text-sm text-foreground">
+                                    <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+                                        Coach Notes
+                                    </p>
+                                    <p>{exercise.coachNotes}</p>
+                                </Card>
+                            )}
+
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <label className="space-y-1">
+                                    <span className="text-foreground">Selected Load</span>
+                                    <input
+                                        type="text"
+                                        name={`selectedLoad-${exercise.id}`}
+                                        defaultValue={currentLog?.selectedLoad ?? ""}
+                                        className="w-full rounded-md border border-border bg-surface px-3 py-3 text-base text-foreground"
+                                    />
+                                </label>
+
+                                <label className="space-y-1">
+                                    <span className="text-foreground">Actual RPE</span>
+                                    <input
+                                        type="text"
+                                        name={`actualRpe-${exercise.id}`}
+                                        defaultValue={currentLog?.actualRpe ?? ""}
+                                        className="w-full rounded-md border border-border bg-surface px-3 py-3 text-base text-foreground"
+                                    />
+                                </label>
+                            </div>
+
+                            <label className="space-y-1">
+                                <span className="text-muted-foreground">Athlete Notes</span>
+                                <textarea
+                                    name={`athleteNotes-${exercise.id}`}
+                                    defaultValue={currentLog?.athleteNotes ?? ""}
+                                    rows={3}
+                                    className="w-full rounded-md border border-border bg-surface px-3 py-3 text-base text-foreground"
+                                />
+                            </label>
+                        </Card>
+                    );
+                })}
+            </div>
+
+            <div className="sticky bottom-0 -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
                 <div className="space-y-3">
                     {completionWarningMessage !== null && (
-                        <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-gray-700">
+                        <Card className="border-[#dccda8] bg-warning-surface p-3 text-sm text-warning-foreground">
                             {completionWarningMessage}
-                        </div>
+                        </Card>
                     )}
 
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-sm text-gray-600">{statusMessage}</p>
+                        <p className={statusClassName}>{statusMessage}</p>
 
                         <div className="flex flex-wrap items-center gap-3">
                             {markSessionCompleteAction !== undefined && (
-                                <button
+                                <Button
                                     type="button"
                                     onClick={async () => {
                                         if (!hasUnsavedChanges) {
@@ -255,19 +382,19 @@ export function SessionLogForm({
 
                                         await markSessionCompleteAction(formData);
                                     }}
-                                    className="rounded border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700"
+                                    variant="secondary"
                                 >
                                     Mark Complete
-                                </button>
+                                </Button>
                             )}
 
-                            <button
+                            <Button
                                 type="submit"
                                 disabled={logStatus === "saving"}
-                                className="rounded border border-black bg-black px-4 py-3 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                variant="primary"
                             >
                                 {logStatus === "saving" ? "Saving..." : "Save Logs"}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -289,4 +416,40 @@ function formatSetsAndReps(sets: string | null, reps: string | null): string {
     const formattedReps = formatNullableText(reps);
 
     return `${formattedSets} x ${formattedReps}`;
+}
+
+function getCompletionStatusLabel(completedAt: Date | null): "Completed" | "Incomplete" {
+    if (completedAt !== null) {
+        return "Completed";
+    }
+
+    return "Incomplete";
+}
+
+function getCompletionStatusVariant(completedAt: Date | null): "completed" | "current" {
+    if (completedAt !== null) {
+        return "completed";
+    }
+
+    return "current";
+}
+
+function buildSessionDisplayLabel({
+    sessionOrder,
+    sessionLabel,
+    intendedWeekday,
+}: {
+    sessionOrder: number;
+    sessionLabel: string | null;
+    intendedWeekday: string | null;
+}): string {
+    if (sessionLabel !== null && sessionLabel !== "") {
+        return sessionLabel;
+    }
+
+    if (intendedWeekday !== null && intendedWeekday !== "") {
+        return `Day ${sessionOrder} - ${intendedWeekday}`;
+    }
+
+    return `Day ${sessionOrder}`;
 }

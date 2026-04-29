@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from "react";
+import { forwardRef, type HTMLAttributes } from "react";
 
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -9,9 +9,13 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
     variant?: CardVariant;
 }
 
-export function Card({ className, variant = "default", ...props }: CardProps) {
+export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
+    { className, variant = "default", ...props },
+    ref,
+) {
     return (
         <div
+            ref={ref}
             className={twMerge(
                 clsx("rounded-lg border border-border", {
                     "bg-surface": variant === "default",
@@ -22,4 +26,4 @@ export function Card({ className, variant = "default", ...props }: CardProps) {
             {...props}
         />
     );
-}
+});
