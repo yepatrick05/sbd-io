@@ -13,23 +13,12 @@ export default async function Home() {
     return (
         <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-8">
             <div className="space-y-3">
-                <Badge variant="neutral">Spreadsheet-first powerlifting log</Badge>
                 <h1 className="max-w-2xl text-3xl font-semibold tracking-[-0.03em] text-foreground">
-                    Calm training workflow for coach-built programs.
+                    Simplify your training workflow.
                 </h1>
                 <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                    A simple training companion that turns coach spreadsheets into a cleaner session-by-session workflow
-                    for lifters.
+                    A tool that turns exercise spreadsheets into a cleaner session-by-session workflow for lifters.
                 </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3 text-sm">
-                <Link href="/upload" className={getButtonClassName({ variant: "primary" })}>
-                    Upload Program
-                </Link>
-                <Link href="/programs" className={getButtonClassName({ variant: "secondary" })}>
-                    View All Programs
-                </Link>
             </div>
 
             {currentProgram === null && (
@@ -46,9 +35,7 @@ export default async function Home() {
                         <h2 className="pt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">
                             {currentProgram.name}
                         </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Latest block: {currentProgram.latestBlockName}
-                        </p>
+                        <p className="text-sm text-muted-foreground">Latest block: {currentProgram.latestBlockName}</p>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -67,10 +54,16 @@ export default async function Home() {
                     </div>
 
                     <div className="flex flex-wrap gap-3 text-sm">
-                        <Link href={`/programs/${currentProgram.id}/next`} className={getButtonClassName({ variant: "primary" })}>
+                        <Link
+                            href={`/programs/${currentProgram.id}/next`}
+                            className={getButtonClassName({ variant: "primary" })}
+                        >
                             Continue Training
                         </Link>
-                        <Link href={`/programs/${currentProgram.id}`} className={getButtonClassName({ variant: "secondary" })}>
+                        <Link
+                            href={`/programs/${currentProgram.id}`}
+                            className={getButtonClassName({ variant: "secondary" })}
+                        >
                             View Program
                         </Link>
                     </div>

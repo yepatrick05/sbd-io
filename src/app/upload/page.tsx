@@ -148,9 +148,9 @@ export default function UploadPage() {
 
     return (
         <main className="space-y-6 p-6">
-            <div className="space-y-2">
-                <h1 className="text-xl font-semibold">Upload Workbook</h1>
-                <p className="text-sm text-gray-600">
+            <div className="space-y-3">
+                <h1 className="max-w-2xl text-3xl font-semibold tracking-[-0.03em] text-foreground">Upload Workbook</h1>
+                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                     Upload an Excel program, review the parsed result, then confirm the import.
                 </p>
             </div>
@@ -185,10 +185,7 @@ export default function UploadPage() {
                             <SummaryCard label="Total Sessions" value={String(reviewSummary.totalSessions)} />
                             <SummaryCard label="Total Exercises" value={String(reviewSummary.totalExercises)} />
                             <SummaryCard label="Errors" value={String(totalErrorCount)} />
-                            <SummaryCard
-                                label="Warnings"
-                                value={`${groupedImportWarnings.length} types`}
-                            />
+                            <SummaryCard label="Warnings" value={`${groupedImportWarnings.length} types`} />
                             <SummaryCard label="Import Status" value={hasBlockingErrors ? "Blocked" : "Ready"} />
                         </div>
 
@@ -310,10 +307,7 @@ export default function UploadPage() {
 
                             {confirmMessage !== null && <p className="text-sm text-gray-600">{confirmMessage}</p>}
                             {savedProgramId !== null && (
-                                <Link
-                                    href={`/programs/${savedProgramId}`}
-                                    className="text-sm text-gray-700 underline"
-                                >
+                                <Link href={`/programs/${savedProgramId}`} className="text-sm text-gray-700 underline">
                                     View saved program
                                 </Link>
                             )}
@@ -490,21 +484,27 @@ export default function UploadPage() {
                                                                             {groupedSessionWarnings.length > 0 && (
                                                                                 <div className="space-y-2">
                                                                                     <p className="font-medium text-sm">
-                                                                                        Warning summary for this
-                                                                                        session
+                                                                                        Warning summary for this session
                                                                                     </p>
 
                                                                                     {groupedSessionWarnings.map(
-                                                                                        (warningSummary, warningIndex) => (
+                                                                                        (
+                                                                                            warningSummary,
+                                                                                            warningIndex,
+                                                                                        ) => (
                                                                                             <div
                                                                                                 key={warningIndex}
                                                                                                 className="rounded border border-yellow-300 bg-yellow-50 p-3 text-sm"
                                                                                             >
                                                                                                 <p className="font-medium">
-                                                                                                    {warningSummary.message}
+                                                                                                    {
+                                                                                                        warningSummary.message
+                                                                                                    }
                                                                                                 </p>
                                                                                                 <p className="text-gray-600">
-                                                                                                    {warningSummary.count}{" "}
+                                                                                                    {
+                                                                                                        warningSummary.count
+                                                                                                    }{" "}
                                                                                                     occurrence
                                                                                                     {warningSummary.count ===
                                                                                                     1
@@ -521,23 +521,39 @@ export default function UploadPage() {
                                                                                         </summary>
 
                                                                                         <div className="mt-3 space-y-2 text-gray-600">
-                                                                                            {groupedSessionWarnings.flatMap(
-                                                                                                (warningSummary) => {
-                                                                                                    return warningSummary.issues;
-                                                                                                },
-                                                                                            ).map((issue, issueIndex) => (
-                                                                                                <p key={issueIndex}>
-                                                                                                    {issue.message} |
-                                                                                                    Exercise:{" "}
-                                                                                                    {formatTextValue(
-                                                                                                        issue.exerciseName,
-                                                                                                    )}{" "}
-                                                                                                    | Source row:{" "}
-                                                                                                    {formatNumberValue(
-                                                                                                        issue.sourceRowNumber,
-                                                                                                    )}
-                                                                                                </p>
-                                                                                            ))}
+                                                                                            {groupedSessionWarnings
+                                                                                                .flatMap(
+                                                                                                    (
+                                                                                                        warningSummary,
+                                                                                                    ) => {
+                                                                                                        return warningSummary.issues;
+                                                                                                    },
+                                                                                                )
+                                                                                                .map(
+                                                                                                    (
+                                                                                                        issue,
+                                                                                                        issueIndex,
+                                                                                                    ) => (
+                                                                                                        <p
+                                                                                                            key={
+                                                                                                                issueIndex
+                                                                                                            }
+                                                                                                        >
+                                                                                                            {
+                                                                                                                issue.message
+                                                                                                            }{" "}
+                                                                                                            | Exercise:{" "}
+                                                                                                            {formatTextValue(
+                                                                                                                issue.exerciseName,
+                                                                                                            )}{" "}
+                                                                                                            | Source
+                                                                                                            row:{" "}
+                                                                                                            {formatNumberValue(
+                                                                                                                issue.sourceRowNumber,
+                                                                                                            )}
+                                                                                                        </p>
+                                                                                                    ),
+                                                                                                )}
                                                                                         </div>
                                                                                     </details>
                                                                                 </div>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +57,6 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
                                     id: true,
                                     sessionOrder: true,
                                     label: true,
-                                    intendedWeekday: true,
                                     completedAt: true,
                                     exercises: {
                                         orderBy: {
@@ -88,142 +89,170 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
     const completionPercentage = getCompletionPercentage(completedSessionCount, totalSessionCount);
 
     return (
-        <main className="space-y-6 p-6">
-            <div className="space-y-2">
-                <Link href="/programs" className="text-sm text-gray-600 underline">
+        <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-8">
+            <div className="space-y-3">
+                <Link href="/programs" className="text-sm text-muted-foreground underline">
                     Back to saved programs
                 </Link>
-                <h1 className="text-2xl font-semibold">{program.name}</h1>
-                <p className="text-sm text-gray-600">Created: {formatDate(program.createdAt)}</p>
-                <Link href={`/programs/${program.id}/next`} className="text-sm text-gray-600 underline">
+                <h1 className="text-3xl font-semibold tracking-[-0.03em] text-foreground">{program.name}</h1>
+                <p className="text-sm text-muted-foreground">Created: {formatDate(program.createdAt)}</p>
+                <Link href={`/programs/${program.id}/next`} className="text-sm text-muted-foreground underline">
                     Continue Training
                 </Link>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded border border-gray-200 bg-white p-4 text-sm">
-                    <p className="text-gray-600">Session Progress</p>
-                    <p className="font-medium">
+                <Card className="p-4 text-sm">
+                    <p className="text-muted-foreground">Session Progress</p>
+                    <p className="font-medium text-foreground">
                         {completedSessionCount} / {totalSessionCount} completed
                     </p>
-                </div>
+                </Card>
 
-                <div className="rounded border border-gray-200 bg-white p-4 text-sm">
-                    <p className="text-gray-600">Completion</p>
-                    <p className="font-medium">{completionPercentage}% complete</p>
-                </div>
+                <Card className="p-4 text-sm">
+                    <p className="text-muted-foreground">Completion</p>
+                    <p className="font-medium text-foreground">{completionPercentage}% complete</p>
+                </Card>
             </div>
 
             {program.blocks.length === 0 && (
-                <div className="rounded border border-gray-200 bg-white p-4 text-sm text-gray-600">
+                <Card className="p-4 text-sm text-muted-foreground">
                     No saved blocks were found for this program.
-                </div>
+                </Card>
             )}
 
             {program.blocks.map((block) => (
-                <section key={block.id} className="space-y-4 rounded border border-gray-200 bg-white p-4">
+                <Card key={block.id} className="space-y-4 p-4">
                     <div className="space-y-1">
-                        <h2 className="text-lg font-semibold">{block.name}</h2>
-                        <p className="text-sm text-gray-600">Sheet: {block.sheetName}</p>
+                        <h2 className="text-lg font-semibold text-foreground">{block.name}</h2>
+                        <p className="text-sm text-muted-foreground">Sheet: {block.sheetName}</p>
                     </div>
 
                     {block.weeks.length === 0 && (
-                        <p className="text-sm text-gray-600">No saved weeks were found for this block.</p>
+                        <p className="text-sm text-muted-foreground">No saved weeks were found for this block.</p>
                     )}
 
-                    {block.weeks.map((week) => (
-                        <div key={week.id} className="space-y-3 rounded border border-gray-200 bg-gray-50 p-4">
-                            <div className="space-y-1">
-                                <h3 className="font-medium">Week {week.weekNumber}</h3>
-                                <p className="text-sm text-gray-600">Sessions: {week.sessions.length}</p>
-                            </div>
+                    {block.weeks.map((week) => {
+                        const completedWeekSessionCount = countCompletedSessionsForWeek(week.sessions);
 
-                            <div className="space-y-2">
-                                {week.sessions.map((session) => (
-                                    <div
-                                        key={session.id}
-                                        className="rounded border border-gray-200 bg-white p-4 text-sm"
-                                    >
+                        return (
+                            <details
+                                key={week.id}
+                                className="rounded-lg border border-border bg-surface"
+                            >
+                                <summary className="cursor-pointer list-none px-4 py-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
                                         <div className="space-y-1">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <p className="font-medium">Session {session.sessionOrder}</p>
-                                                <span
-                                                    className={getSessionStatusBadgeClassName(
-                                                        getSessionStatusLabel(
-                                                            session.completedAt,
-                                                            currentSessionId,
-                                                            session.id,
-                                                        ),
-                                                    )}
-                                                >
-                                                    {getSessionStatusLabel(
-                                                        session.completedAt,
-                                                        currentSessionId,
-                                                        session.id,
-                                                    )}
-                                                </span>
-                                            </div>
-                                            <p className="text-gray-600">Label: {session.label ?? "Not found"}</p>
-                                            <p className="text-gray-600">
-                                                Intended weekday: {session.intendedWeekday ?? "Not found"}
+                                            <p className="font-medium text-foreground">Week {week.weekNumber}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {week.sessions.length} sessions
                                             </p>
-                                            <p className="text-gray-600">Exercise count: {session.exercises.length}</p>
-                                            <Link
-                                                href={`/programs/${program.id}/sessions/${session.id}`}
-                                                className="inline-block text-gray-600 underline"
-                                            >
-                                                View session details
-                                            </Link>
                                         </div>
 
-                                        {session.exercises.length > 0 && (
-                                            <div className="mt-3 rounded border border-gray-200">
-                                                <table className="min-w-full border-collapse text-sm">
-                                                    <thead className="bg-gray-50">
-                                                        <tr className="border-b border-gray-200">
-                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                Exercise
-                                                            </th>
-                                                            <th className="px-3 py-2 text-left font-medium">Sets</th>
-                                                            <th className="px-3 py-2 text-left font-medium">Reps</th>
-                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                Prescribed Load
-                                                            </th>
-                                                            <th className="px-3 py-2 text-left font-medium">
-                                                                Prescribed RPE
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {session.exercises.map((exercise) => (
-                                                            <tr key={exercise.id} className="border-b border-gray-200">
-                                                                <td className="px-3 py-2 align-top">
-                                                                    {exercise.rawExerciseName}
-                                                                </td>
-                                                                <td className="px-3 py-2 align-top">
-                                                                    {formatNullableText(exercise.sets)}
-                                                                </td>
-                                                                <td className="px-3 py-2 align-top">
-                                                                    {formatNullableText(exercise.reps)}
-                                                                </td>
-                                                                <td className="px-3 py-2 align-top">
-                                                                    {formatNullableText(exercise.prescribedLoad)}
-                                                                </td>
-                                                                <td className="px-3 py-2 align-top">
-                                                                    {formatNullableText(exercise.prescribedRpe)}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
+                                        <Badge variant="neutral">
+                                            {completedWeekSessionCount} / {week.sessions.length} completed
+                                        </Badge>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </section>
+                                </summary>
+
+                                <div className="space-y-3 border-t border-border px-4 py-4">
+                                    {week.sessions.map((session) => {
+                                        const sessionStatusLabel = getSessionStatusLabel(
+                                            session.completedAt,
+                                            currentSessionId,
+                                            session.id,
+                                        );
+
+                                        return (
+                                            <details
+                                                key={session.id}
+                                                className="rounded-lg border border-border bg-surface-muted"
+                                            >
+                                                <summary className="cursor-pointer list-none px-4 py-4">
+                                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                                        <div className="space-y-1">
+                                                            <p className="font-medium text-foreground">
+                                                                Session {session.sessionOrder}
+                                                            </p>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {session.label ?? "Not found"}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <Badge variant={getSessionStatusBadgeVariant(sessionStatusLabel)}>
+                                                                {sessionStatusLabel}
+                                                            </Badge>
+                                                            <Badge variant="neutral">
+                                                                {session.exercises.length} exercises
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
+                                                </summary>
+
+                                                <div className="space-y-3 border-t border-border bg-surface px-4 py-4 text-sm">
+                                                    <Link
+                                                        href={`/programs/${program.id}/sessions/${session.id}`}
+                                                        className="inline-block text-muted-foreground underline"
+                                                    >
+                                                        View session details
+                                                    </Link>
+
+                                                    {session.exercises.length > 0 && (
+                                                        <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+                                                            <table className="min-w-full border-collapse text-sm">
+                                                                <thead className="bg-surface-muted">
+                                                                    <tr className="border-b border-border">
+                                                                        <th className="px-3 py-2 text-left font-medium">
+                                                                            Exercise
+                                                                        </th>
+                                                                        <th className="px-3 py-2 text-left font-medium">
+                                                                            Sets
+                                                                        </th>
+                                                                        <th className="px-3 py-2 text-left font-medium">
+                                                                            Reps
+                                                                        </th>
+                                                                        <th className="px-3 py-2 text-left font-medium">
+                                                                            Prescribed Load
+                                                                        </th>
+                                                                        <th className="px-3 py-2 text-left font-medium">
+                                                                            Prescribed RPE
+                                                                        </th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {session.exercises.map((exercise) => (
+                                                                        <tr key={exercise.id} className="border-b border-border">
+                                                                            <td className="px-3 py-2 align-top text-foreground">
+                                                                                {exercise.rawExerciseName}
+                                                                            </td>
+                                                                            <td className="px-3 py-2 align-top text-muted-foreground">
+                                                                                {formatNullableText(exercise.sets)}
+                                                                            </td>
+                                                                            <td className="px-3 py-2 align-top text-muted-foreground">
+                                                                                {formatNullableText(exercise.reps)}
+                                                                            </td>
+                                                                            <td className="px-3 py-2 align-top text-muted-foreground">
+                                                                                {formatNullableText(exercise.prescribedLoad)}
+                                                                            </td>
+                                                                            <td className="px-3 py-2 align-top text-muted-foreground">
+                                                                                {formatNullableText(exercise.prescribedRpe)}
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </details>
+                                        );
+                                    })}
+                                </div>
+                            </details>
+                        );
+                    })}
+                </Card>
             ))}
         </main>
     );
@@ -310,14 +339,30 @@ function getSessionStatusLabel(
     return "Upcoming";
 }
 
-function getSessionStatusBadgeClassName(status: "Completed" | "Current" | "Upcoming"): string {
+function getSessionStatusBadgeVariant(status: "Completed" | "Current" | "Upcoming"): "completed" | "current" | "upcoming" {
     if (status === "Completed") {
-        return "rounded border border-green-300 bg-green-50 px-2 py-0.5 text-xs text-green-700";
+        return "completed";
     }
 
     if (status === "Current") {
-        return "rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700";
+        return "current";
     }
 
-    return "rounded border border-gray-300 bg-gray-50 px-2 py-0.5 text-xs text-gray-700";
+    return "upcoming";
+}
+
+function countCompletedSessionsForWeek(
+    sessions: {
+        completedAt: Date | null;
+    }[],
+): number {
+    let completedSessionCount = 0;
+
+    for (const session of sessions) {
+        if (session.completedAt !== null) {
+            completedSessionCount += 1;
+        }
+    }
+
+    return completedSessionCount;
 }

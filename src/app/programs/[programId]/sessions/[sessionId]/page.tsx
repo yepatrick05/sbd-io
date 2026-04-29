@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { Badge } from "@/components/ui/badge";
 import { Button, getButtonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
@@ -282,6 +283,11 @@ export default async function SessionDetailPage({
                 <h1 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
                     Exercise Logs
                 </h1>
+
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <Badge variant="neutral">Focused logging</Badge>
+                    <Badge variant="upcoming">Table view available</Badge>
+                </div>
             </div>
 
             {statusMessage !== null && (

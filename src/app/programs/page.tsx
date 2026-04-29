@@ -85,9 +85,6 @@ export default async function ProgramsPage() {
     return (
         <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-8">
             <div className="space-y-3">
-                <Link href="/" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
-                    Back to Dashboard
-                </Link>
                 <h1 className="text-3xl font-semibold tracking-[-0.03em] text-foreground">Saved Programs</h1>
                 <p className="text-sm leading-6 text-muted-foreground">
                     Browse programs that have already been confirmed and saved.
@@ -95,9 +92,7 @@ export default async function ProgramsPage() {
             </div>
 
             {programs.length === 0 && (
-                <Card className="p-4 text-sm text-muted-foreground">
-                    No saved programs were found yet.
-                </Card>
+                <Card className="p-4 text-sm text-muted-foreground">No saved programs were found yet.</Card>
             )}
 
             {programs.length > 0 && (
@@ -112,11 +107,7 @@ export default async function ProgramsPage() {
                         return (
                             <Card
                                 key={program.id}
-                                className={
-                                    isCurrentProgram
-                                        ? "border-accent p-5 text-sm"
-                                        : "p-5 text-sm"
-                                }
+                                className={isCurrentProgram ? "border-accent p-5 text-sm" : "p-5 text-sm"}
                             >
                                 <div className="space-y-4">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -124,11 +115,7 @@ export default async function ProgramsPage() {
                                             {program.name}
                                         </p>
 
-                                        {isCurrentProgram && (
-                                            <Badge variant="current">
-                                                Current Program
-                                            </Badge>
-                                        )}
+                                        {isCurrentProgram && <Badge variant="current">Current Program</Badge>}
                                     </div>
                                     <p className="text-muted-foreground">
                                         Block: {firstBlock === null ? "Not found" : firstBlock.name}
@@ -148,12 +135,17 @@ export default async function ProgramsPage() {
                                         </Card>
                                         <Card variant="muted" className="p-3">
                                             <p className="text-muted-foreground">Created</p>
-                                            <p className="font-medium text-foreground">{formatDate(program.createdAt)}</p>
+                                            <p className="font-medium text-foreground">
+                                                {formatDate(program.createdAt)}
+                                            </p>
                                         </Card>
                                     </div>
 
                                     <div className="flex flex-wrap items-start gap-3">
-                                        <Link href={`/programs/${program.id}`} className={getButtonClassName({ variant: "secondary", size: "sm" })}>
+                                        <Link
+                                            href={`/programs/${program.id}`}
+                                            className={getButtonClassName({ variant: "secondary", size: "sm" })}
+                                        >
                                             View Program
                                         </Link>
 

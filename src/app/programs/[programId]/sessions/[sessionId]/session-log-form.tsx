@@ -13,6 +13,7 @@ export interface SaveLogsState {
 }
 
 type LogStatus = "clean" | "dirty" | "saving" | "saved" | "error";
+type SessionViewMode = "focused" | "table";
 
 interface SessionLogFormProps {
     exercises: {
@@ -59,6 +60,7 @@ export function SessionLogForm({
     const [errorMessage, setErrorMessage] = useState("");
     const [completionWarningMessage, setCompletionWarningMessage] = useState<string | null>(null);
     const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
+    const [sessionViewMode, setSessionViewMode] = useState<SessionViewMode>("focused");
     const hasUnsavedChanges = logStatus === "dirty";
     const lastExerciseIndex = Math.max(exercises.length - 1, 0);
     const visibleExerciseIndex = Math.min(activeExerciseIndex, lastExerciseIndex);
@@ -249,11 +251,75 @@ export function SessionLogForm({
                         )}
                     </div>
                 </div>
+
+                {exercises.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            type="button"
+                            variant={sessionViewMode === "focused" ? "primary" : "secondary"}
+                            size="sm"
+                            onClick={() => {
+                                setSessionViewMode("focused");
+                            }}
+                        >
+                            Focused View
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={sessionViewMode === "table" ? "primary" : "secondary"}
+                            size="sm"
+                            onClick={() => {
+                                setSessionViewMode("table");
+                            }}
+                        >
+                            Full Table
+                        </Button>
+                    </div>
+                )}
             </Card>
+
+            {exercises.length > 0 && sessionViewMode === "table" && (
+                <Card className="overflow-x-auto p-0">
+                    <table className="min-w-full border-collapse text-sm">
+                        <thead className="bg-surface-muted">
+                            <tr className="border-b border-border">
+                                <th className="px-3 py-2 text-left font-medium">Exercise</th>
+                                <th className="px-3 py-2 text-left font-medium">Sets</th>
+                                <th className="px-3 py-2 text-left font-medium">Reps</th>
+                                <th className="px-3 py-2 text-left font-medium">Prescribed Load</th>
+                                <th className="px-3 py-2 text-left font-medium">Prescribed RPE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {exercises.map((exercise) => (
+                                <tr key={exercise.id} className="border-b border-border">
+                                    <td className="px-3 py-2 align-top text-foreground">{exercise.rawExerciseName}</td>
+                                    <td className="px-3 py-2 align-top text-muted-foreground">
+                                        {formatNullableText(exercise.sets)}
+                                    </td>
+                                    <td className="px-3 py-2 align-top text-muted-foreground">
+                                        {formatNullableText(exercise.reps)}
+                                    </td>
+                                    <td className="px-3 py-2 align-top text-muted-foreground">
+                                        {formatNullableText(exercise.prescribedLoad)}
+                                    </td>
+                                    <td className="px-3 py-2 align-top text-muted-foreground">
+                                        {formatNullableText(exercise.prescribedRpe)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </Card>
+            )}
 
             <div
                 ref={mobileExerciseContainerRef}
-                className="space-y-4 md:space-y-4 md:overflow-visible md:snap-none md:pr-0 md:[scrollbar-width:auto] max-md:max-h-[calc(100svh-25rem)] max-md:overflow-y-auto max-md:snap-y max-md:snap-mandatory max-md:overscroll-contain max-md:pr-1 max-md:[scrollbar-width:none]"
+                className={clsx(
+                    "space-y-4 md:space-y-4 md:overflow-visible md:snap-none md:pr-0 md:[scrollbar-width:auto]",
+                    "max-md:max-h-[calc(100svh-25rem)] max-md:overflow-y-auto max-md:snap-y max-md:snap-mandatory max-md:overscroll-contain max-md:pr-1 max-md:[scrollbar-width:none]",
+                    sessionViewMode === "table" ? "hidden" : "block",
+                )}
             >
                 {exercises.map((exercise, exerciseIndex) => {
                     const currentLog = exercise.logs[0] ?? null;
